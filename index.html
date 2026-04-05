@@ -1,13 +1,2037 @@
-<!-- Chennai Flood Simulator — paste your content here -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chennai Flood Simulator</title>
+<meta charset="UTF-8">
+<title>Chennai Flood Simulator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05101c}
+:root{
+  --a:#00d4ff;--g:#00ff88;--w:#ffaa00;--d:#ff2244;
+  --dim:#4a6880;--txt:#ffffff;--bdr:#12263d;--pan:#070f1c;
+  --pw:272px
+}
+body{font-family:'Inter',sans-serif;color:var(--txt);font-size:13px;line-height:1.5}
+
+/* ── FIXED LAYOUT ── */
+#panel{
+  position:fixed;left:0;top:0;bottom:0;width:var(--pw);
+  background:var(--pan);border-right:2px solid var(--bdr);
+  overflow-y:auto;z-index:100;
+  scrollbar-width:thin;scrollbar-color:var(--bdr) transparent
+}
+#panel::-webkit-scrollbar{width:3px}
+#panel::-webkit-scrollbar-thumb{background:var(--bdr)}
+#panel::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(rgba(0,212,255,.028) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(0,212,255,.028) 1px,transparent 1px);
+  background-size:22px 22px}
+#mapwrap{position:fixed;left:var(--pw);top:0;right:0;bottom:0}
+#map{position:absolute;inset:0;width:100%;height:100%}
+#rainCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10}
+
+/* ── PANEL UI ── */
+.ph{padding:12px 14px 9px;border-bottom:1px solid var(--bdr);background:rgba(0,212,255,.04)}
+.ph h1{font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:900;color:var(--a);letter-spacing:3px;line-height:1.5}
+.ph .sub{font-size:7.5px;color:var(--dim);letter-spacing:2px;margin-top:2px}
+.sec{padding:9px 13px;border-bottom:1px solid var(--bdr)}
+.sct{font-size:7px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;margin-bottom:7px}
+.td{text-align:center;padding:8px 0 1px;font-family:'Space Grotesk',sans-serif;font-size:21px;color:var(--a);letter-spacing:4px;font-weight:bold}
+.tl{font-size:7.5px;color:var(--dim);text-align:center;letter-spacing:2px;margin-bottom:3px}
+#alert{display:none;margin:5px 10px 0;padding:5px 9px;border-radius:2px;
+  border:1px solid rgba(255,34,68,.4);background:rgba(255,34,68,.1);
+  color:var(--d);font-size:8px;text-align:center;line-height:1.4}
+#alert.w{border-color:rgba(255,170,0,.4);background:rgba(255,170,0,.1);color:var(--w)}
+.rlbl{font-size:9.5px;color:var(--w);font-weight:bold;margin-bottom:4px;font-family:'Space Grotesk',sans-serif}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;
+  background:linear-gradient(90deg,#0a1a30,var(--a));border-radius:2px;cursor:pointer;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+  background:var(--a);border-radius:50%;box-shadow:0 0 7px var(--a)}
+.rst{display:flex;justify-content:space-between;margin-top:2px;font-size:6.5px;color:var(--dim)}
+.rv{font-size:8px;color:var(--txt);margin-top:3px}
+.res{display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.rn{font-size:8px;flex:1}
+.rp{font-size:7px;color:var(--dim);width:24px;text-align:right;flex-shrink:0}
+.rb{width:50px;height:4px;background:#0a1a30;border-radius:2px;overflow:hidden;flex-shrink:0}
+.rf{height:100%;background:#2255cc;border-radius:2px;transition:width .5s}
+.tbtn{font-size:7.5px;padding:2px 5px;border:1px solid var(--dim);background:transparent;
+  color:var(--dim);border-radius:2px;cursor:pointer;flex-shrink:0;transition:all .2s;font-family:'Inter',sans-serif}
+.tbtn.on{border-color:var(--w);color:var(--w);background:rgba(255,170,0,.1)}
+.mode{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.ml{font-size:8.5px}
+.sw{width:32px;height:16px;background:#0a1a30;border-radius:8px;position:relative;cursor:pointer;transition:background .3s;flex-shrink:0}
+.sw.on{background:var(--d)}
+.sw::after{content:'';position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .3s}
+.sw.on::after{left:18px}
+.ctrls{display:flex;gap:5px}
+.cbtn{flex:1;padding:6px 4px;font-family:'Space Grotesk',sans-serif;font-size:8px;font-weight:bold;
+  letter-spacing:1px;border:1px solid var(--bdr);background:transparent;color:var(--txt);
+  border-radius:2px;cursor:pointer;transition:all .2s;text-align:center}
+.cbtn:hover,.cbtn.pri{border-color:var(--a);color:var(--a)}
+.spd{display:flex;gap:3px;margin-top:4px}
+.sbtn{flex:1;padding:3px;font-size:8px;border:1px solid var(--bdr);background:transparent;
+  color:var(--dim);cursor:pointer;text-align:center;border-radius:2px;transition:all .2s;font-family:'Inter',sans-serif}
+.sbtn.on{border-color:var(--g);color:var(--g)}
+.sr{display:flex;justify-content:space-between;align-items:center;padding:3px 0;
+  border-bottom:1px solid rgba(255,255,255,.03);font-size:8.5px}
+.sv{font-size:9.5px;font-weight:bold}
+.sv.g{color:var(--g)}.sv.y{color:var(--w)}.sv.r{color:var(--d)}
+.zi{display:flex;align-items:center;gap:5px;padding:3px 0;font-size:8.5px;border-bottom:1px solid rgba(255,255,255,.03)}
+.zd{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.zd.g{background:var(--g)}.zd.y{background:var(--w)}.zd.r{background:var(--d);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.sn{display:flex;gap:4px}
+.snb{flex:1;padding:4px 2px;font-size:8px;border:1px solid var(--bdr);background:transparent;
+  color:var(--dim);cursor:pointer;text-align:center;border-radius:2px;transition:all .2s;font-family:'Inter',sans-serif}
+.snb.on{border-color:var(--a);color:var(--a);background:rgba(0,212,255,.06)}
+
+/* ── MAP HUD overlays ── */
+.leaflet-control-attribution{background:rgba(5,14,26,.8)!important;color:rgba(150,180,210,.8)!important;font-size:7.5px!important}
+.leaflet-control-attribution a{color:rgba(150,180,210,.8)!important}
+.leaflet-control-zoom{margin:50px 8px 0 0!important}
+.leaflet-control-zoom a{background:rgba(7,15,28,.92)!important;color:var(--a)!important;
+  border-color:var(--bdr)!important;line-height:26px!important;width:27px!important;height:27px!important}
+.leaflet-control-zoom a:hover{background:rgba(0,212,255,.12)!important}
+.lft{background:rgba(5,14,26,.92)!important;border:1px solid var(--bdr)!important;
+  color:var(--txt)!important;font-family:'Inter',sans-serif!important;
+  font-size:9.5px!important;padding:4px 9px!important;border-radius:2px!important;box-shadow:none!important}
+.lft::before{display:none!important}
+#hudtitle{position:absolute;top:9px;left:9px;z-index:400;font-family:'Space Grotesk',sans-serif;
+  font-size:9px;color:rgba(0,212,255,.88);letter-spacing:2px;pointer-events:none;
+  background:rgba(5,14,26,.78);padding:4px 10px;border-left:2px solid var(--a)}
+.hbtn{position:absolute;z-index:400;font-size:9px;letter-spacing:1px;padding:5px 12px;
+  border:1px solid var(--bdr);background:rgba(7,15,28,.92);color:var(--txt);cursor:pointer;
+  border-radius:2px;transition:all .2s;font-family:'Inter',sans-serif;white-space:nowrap}
+.hbtn:hover{border-color:var(--a);color:var(--a)}
+#vbtn{top:9px;right:10px}
+#tbtn{top:38px;right:10px;border-color:rgba(0,212,255,.35);color:var(--a)}
+#scbtn{top:67px;right:10px;border-color:rgba(255,170,0,.35);color:var(--w)}
+#legend{position:absolute;bottom:28px;right:9px;z-index:400;background:rgba(5,14,26,.92);
+  border:1px solid var(--bdr);border-radius:2px;padding:9px 12px;font-size:8.5px;pointer-events:none}
+#legend h4{font-family:'Space Grotesk',sans-serif;font-size:7px;color:var(--a);letter-spacing:2px;margin-bottom:7px}
+.li{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.lc{width:16px;height:8px;border-radius:1px;flex-shrink:0}
+#coord{position:absolute;bottom:9px;left:9px;z-index:400;font-size:7.5px;color:rgba(150,180,210,.65);pointer-events:none}
+#dlegend{position:absolute;bottom:28px;left:9px;z-index:400;display:none;
+  background:rgba(5,14,26,.92);border:1px solid var(--bdr);border-radius:2px;padding:8px 12px}
+#dlegend h4{font-family:'Space Grotesk',sans-serif;font-size:7px;color:var(--a);letter-spacing:2px;margin-bottom:6px}
+.dbar{width:120px;height:9px;border-radius:2px;margin-bottom:3px;
+  background:linear-gradient(90deg,rgba(0,100,255,.25),rgba(0,100,255,1))}
+.dlbl{display:flex;justify-content:space-between;font-size:7px;color:var(--dim)}
+
+/* ── SCENARIO MODAL ── */
+#scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:600}
+#scmodal{display:none;position:fixed;top:50%;left:calc(var(--pw)/2 + 50%);
+  transform:translate(-50%,-50%);
+  width:min(94vw,1000px);max-height:88vh;
+  background:#060e1a;border:1px solid var(--bdr);border-radius:3px;
+  z-index:700;flex-direction:column;box-shadow:0 0 50px rgba(0,212,255,.1)}
+#scmodal.open{display:flex}
+.mhd{display:flex;justify-content:space-between;align-items:center;
+  padding:13px 18px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.mhd h2{font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--a);letter-spacing:3px}
+.mhd button{background:transparent;border:1px solid var(--bdr);color:var(--dim);
+  width:24px;height:24px;cursor:pointer;border-radius:2px;font-size:13px;transition:all .2s}
+.mhd button:hover{border-color:var(--d);color:var(--d)}
+#scbody{flex:1;overflow-y:auto;padding:14px 18px;scrollbar-width:thin;scrollbar-color:var(--bdr) transparent}
+.mft{display:flex;align-items:center;gap:8px;padding:11px 18px;border-top:1px solid var(--bdr);flex-shrink:0}
+.abtn{font-family:'Space Grotesk',sans-serif;font-size:8px;font-weight:bold;letter-spacing:1.5px;
+  padding:6px 14px;border:1px solid var(--bdr);background:transparent;color:var(--dim);
+  cursor:pointer;border-radius:2px;transition:all .2s}
+.abtn:hover{border-color:var(--a);color:var(--a)}
+.abtn.pri{border-color:var(--a);color:var(--a);background:rgba(0,212,255,.07)}
+#prwrap{display:none;margin-bottom:13px;padding:11px;background:#040b15;border:1px solid var(--bdr);border-radius:2px}
+#prlab{font-size:9px;color:var(--a);letter-spacing:2px;margin-bottom:7px;font-family:'Space Grotesk',sans-serif}
+#prbg{height:4px;background:#0a1a30;border-radius:2px;overflow:hidden;margin-bottom:7px}
+#prfill{height:100%;background:linear-gradient(90deg,var(--a),var(--g));border-radius:2px;width:0%;transition:width .3s}
+#prlive{font-size:8px;color:var(--dim);letter-spacing:1px}
+#sccards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:14px}
+.scard{background:#040b15;border:1px solid var(--bdr);border-radius:3px;overflow:hidden}
+.scard.run{border-color:var(--a);box-shadow:0 0 10px rgba(0,212,255,.15)}
+.scard.ok{border-color:rgba(0,255,136,.3)}.scard.wr{border-color:rgba(255,170,0,.4)}.scard.bd{border-color:rgba(255,34,68,.5)}
+.sch{display:flex;align-items:center;gap:9px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.05)}
+.sci{font-size:17px;flex-shrink:0}
+.scn{font-size:8.5px;font-weight:bold;color:var(--txt);letter-spacing:1px;line-height:1.35}
+.scd{font-size:7.5px;color:var(--dim);margin-top:2px}
+.scb{padding:9px 11px}
+.str{display:flex;justify-content:space-between;font-size:8px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.stv{font-size:9px;font-weight:bold}
+.stv.g{color:var(--g)}.stv.y{color:var(--w)}.stv.r{color:var(--d)}
+.svd{margin-top:7px;font-size:8px;line-height:1.6;color:#b8d0e8;padding:5px 7px;
+  background:rgba(255,255,255,.03);border-radius:2px;border-left:2px solid var(--a)}
+.pend{text-align:center;padding:18px;font-size:8.5px;color:var(--dim);letter-spacing:2px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--bdr);
+  border-top-color:var(--a);border-radius:50%;animation:spin .7s linear infinite;
+  margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+#scconcl{display:none;background:#040b15;border:1px solid var(--bdr);border-radius:3px;padding:14px 16px}
+#scconcl h3{font-family:'Space Grotesk',sans-serif;font-size:10px;color:var(--a);letter-spacing:2px;
+  margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--bdr)}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ccol h4{font-size:8px;letter-spacing:2px;margin-bottom:7px;padding-bottom:4px;
+  border-bottom:1px solid rgba(255,255,255,.06);font-family:'Space Grotesk',sans-serif}
+.ccol h4.r{color:var(--d)}.ccol h4.g{color:var(--g)}.ccol h4.y{color:var(--w)}.ccol h4.a{color:var(--a)}
+.cr{font-size:8px;line-height:1.65;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;gap:6px}
+.cd{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.cd.r{background:var(--d)}.cd.g{background:var(--g)}.cd.y{background:var(--w)}
+.csum{grid-column:1/-1;font-size:9px;line-height:1.85;color:var(--txt);padding:11px 13px;
+  background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.12);border-radius:2px;margin-top:3px}
+#vtog{cursor:pointer;font-size:8px;color:var(--dim);margin-left:auto;letter-spacing:1px}
+@media(max-width:580px){.cgrid{grid-template-columns:1fr}}
+
+/* ── TOUR ── */
+#tourover{display:none;position:absolute;bottom:0;left:0;right:0;z-index:500;pointer-events:none}
+#tourcap{background:rgba(4,10,22,.95);border-top:2px solid var(--a);
+  padding:12px 20px 9px;display:flex;align-items:flex-start;gap:12px}
+#tourico{font-size:20px;flex-shrink:0;margin-top:2px}
+#tourtxt{font-size:12.5px;line-height:1.7;color:#fff;flex:1;letter-spacing:.3px}
+#tourctrls{background:rgba(4,10,22,.9);border-top:1px solid var(--bdr);
+  padding:7px 20px;display:flex;align-items:center;gap:9px;pointer-events:all}
+.tcb{font-family:'Space Grotesk',sans-serif;font-size:8px;font-weight:bold;letter-spacing:1px;
+  padding:4px 11px;border:1px solid var(--bdr);background:transparent;color:var(--dim);
+  cursor:pointer;border-radius:2px;transition:all .2s}
+.tcb:hover{border-color:var(--a);color:var(--a)}
+#tcstop{border-color:rgba(255,34,68,.3);color:var(--d);margin-left:auto}
+#tdots{display:flex;gap:4px;flex:1;justify-content:center;flex-wrap:wrap}
+.tdot{width:6px;height:6px;border-radius:50%;background:var(--bdr);cursor:pointer;transition:all .2s}
+.tdot.act{background:var(--a);box-shadow:0 0 5px var(--a);transform:scale(1.3)}
+.tdot.dn{background:var(--dim)}
+.thl{outline:2px solid var(--a)!important;
+  box-shadow:0 0 0 4px rgba(0,212,255,.15),0 0 16px rgba(0,212,255,.25)!important;
+  border-radius:2px;position:relative;z-index:5;animation:hlp 1.4s ease-in-out infinite}
+@keyframes hlp{0%,100%{box-shadow:0 0 0 4px rgba(0,212,255,.15)}50%{box-shadow:0 0 0 7px rgba(0,212,255,.06),0 0 24px rgba(0,212,255,.35)}}
+
+/* ── SIMULATION RUNNING ANIMATION OVERLAY ── */
+#simanim{
+  display:none;position:absolute;inset:0;z-index:450;
+  background:rgba(4,12,26,.72);backdrop-filter:blur(2px);
+  align-items:center;justify-content:center;
+}
+#sa-inner{
+  text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+#sa-rings{position:relative;width:90px;height:90px;margin-bottom:4px}
+.sa-ring{
+  position:absolute;border-radius:50%;border:2px solid var(--a);
+  animation:sa-pulse 2s ease-in-out infinite;
+}
+.r1{inset:0;opacity:.9;animation-delay:0s}
+.r2{inset:12px;opacity:.6;animation-delay:.3s;border-color:#00ff88}
+.r3{inset:24px;opacity:.4;animation-delay:.6s;border-color:var(--w)}
+@keyframes sa-pulse{
+  0%,100%{transform:scale(1);opacity:.9}
+  50%{transform:scale(1.08);opacity:.4}
+}
+#sa-icon{font-size:28px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  animation:sa-wave 1.5s ease-in-out infinite}
+@keyframes sa-wave{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-58%) scale(1.15)}}
+#sa-label{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
+  color:var(--a);letter-spacing:3px;text-transform:uppercase}
+#sa-sub{font-size:11px;color:rgba(180,210,255,.7);letter-spacing:1px}
+#sa-bar{width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+#sa-bar-fill{height:100%;background:linear-gradient(90deg,var(--a),#00ff88);border-radius:2px;
+  width:0%;transition:width .4s}
+#sa-dots{display:flex;gap:8px}
+.sad{font-size:9px;color:var(--a);animation:sa-dot 1.2s ease-in-out infinite}
+.sad:nth-child(1){animation-delay:0s}.sad:nth-child(2){animation-delay:.15s}
+.sad:nth-child(3){animation-delay:.3s}.sad:nth-child(4){animation-delay:.45s}
+.sad:nth-child(5){animation-delay:.6s}
+@keyframes sa-dot{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+
+/* ── FONT READABILITY IMPROVEMENTS ── */
+.sec-t,.sct{font-size:9px;font-weight:600;letter-spacing:1.5px}
+.sr span:first-child,.zi span{font-size:10px}
+.sv{font-size:11px}
+.scn{font-size:10px;letter-spacing:.5px}
+.scd{font-size:9px}
+.str span:first-child{font-size:9px}
+.stv{font-size:10px}
+#prlab{letter-spacing:1px}
+
+</style>
 </head>
 <body>
-    <h1>Chennai Flood Simulator</h1>
-    <p>Content will be added.</p>
+
+<!-- ═══ PANEL ═══ -->
+<div id="panel">
+  <div class="ph">
+    <h1>CHENNAI FLOOD<br>SIMULATOR</h1>
+    <div class="sub">REAL-TIME HYDROLOGICAL EMERGENCY SYSTEM</div>
+  </div>
+  <div id="alert"></div>
+  <div class="td" id="stime">00:00</div>
+  <div class="tl">EVENT DURATION (HH:MM)</div>
+
+  <div class="sec" id="sec-rain">
+    <div class="sct">▸ Rain Intensity</div>
+    <div class="rlbl" id="rlbl">DRY / NORMAL CONDITIONS</div>
+    <input type="range" id="rslider" min="0" max="50" value="0"
+      oninput="S.ri=this.value/10;updateRainLabel()">
+    <div class="rst"><span>DRY</span><span>LIGHT</span><span>MOD</span><span>HEAVY</span><span>EXTR</span></div>
+    <div class="rv" id="rval">0 mm/day</div>
+  </div>
+
+  <div class="sec" id="sec-monsoon">
+    <div class="sct">▸ Monsoon Pattern</div>
+    <div class="sn">
+      <div class="snb" id="sn-dry" onclick="setSeason('dry')">DRY</div>
+      <div class="snb on" id="sn-ne" onclick="setSeason('ne')">NE MON</div>
+      <div class="snb" id="sn-sw" onclick="setSeason('sw')">SW MON</div>
+    </div>
+  </div>
+
+  <div class="sec" id="sec-res">
+    <div class="sct">▸ Reservoir Levels</div>
+    <div class="res">
+      <div class="rn">Chembarambakkam</div>
+      <div class="rb"><div class="rf" id="chembar" style="width:60%"></div></div>
+      <div class="rp" id="chem-pct">60%</div>
+      <button class="tbtn" id="chembtn" onclick="toggleRes('chem')">REL</button>
+    </div>
+    <div class="res">
+      <div class="rn">Red Hills (Puzhal)</div>
+      <div class="rb"><div class="rf" id="rhbar" style="width:75%"></div></div>
+      <div class="rp" id="rh-pct">75%</div>
+      <button class="tbtn" id="rhbtn" onclick="toggleRes('rh')">REL</button>
+    </div>
+    <div class="res">
+      <div class="rn">Poondi</div>
+      <div class="rb"><div class="rf" id="poondibar" style="width:45%"></div></div>
+      <div class="rp" id="poondi-pct">45%</div>
+      <button class="tbtn" id="poondibtn" onclick="toggleRes('poondi')">REL</button>
+    </div>
+  </div>
+
+  <div class="sec" id="sec-special">
+    <div class="sct">▸ Special Conditions</div>
+    <div class="mode"><div class="ml">🌀 Cyclone / Depression</div><div class="sw" id="cyclo-sw" onclick="toggleMode('cyclone')"></div></div>
+    <div class="mode"><div class="ml">🌊 Bay of Bengal Surge</div><div class="sw" id="surge-sw" onclick="toggleMode('surge')"></div></div>
+    <div class="mode"><div class="ml">⚙ Urban Drain Blockage</div><div class="sw" id="drain-sw" onclick="toggleMode('drain')"></div></div>
+  </div>
+
+  <div class="sec" id="sec-ctrl">
+    <div class="sct">▸ Simulation Controls</div>
+    <div class="ctrls">
+      <button class="cbtn pri" id="playbtn" onclick="togglePlay()">▶ PLAY</button>
+      <button class="cbtn" onclick="resetSim()">↺ RESET</button>
+    </div>
+    <div class="spd">
+      <div class="sbtn on" onclick="setSpd(1)">1×</div>
+      <div class="sbtn" onclick="setSpd(2)">2×</div>
+      <div class="sbtn" onclick="setSpd(5)">5×</div>
+      <div class="sbtn" onclick="setSpd(10)">10×</div>
+    </div>
+  </div>
+
+  <div class="sec" id="sec-stats">
+    <div class="sct">▸ Flood Statistics</div>
+    <div class="sr"><span>Flood Coverage</span><span class="sv g" id="st-cov">0 km²</span></div>
+    <div class="sr"><span>Flood Risk Level</span><span class="sv g" id="st-risk">NONE</span></div>
+    <div class="sr"><span>Population at Risk</span><span class="sv" id="st-pop">—</span></div>
+    <div class="sr"><span>Max Water Depth</span><span class="sv g" id="st-dep">0 in</span></div>
+    <div class="sr"><span>River Status</span><span class="sv g" id="st-riv">NORMAL</span></div>
+  </div>
+
+  <div class="sec" id="sec-zones">
+    <div class="sct">▸ Zone Status</div>
+    <div id="zone-list"></div>
+  </div>
+</div>
+
+<!-- ═══ MAP ═══ -->
+<div id="mapwrap">
+  <div id="map"></div>
+  <canvas id="rainCanvas"></canvas>
+
+  <div id="hudtitle">CHENNAI METROPOLITAN — LIVE FLOOD SIMULATION</div>
+  <div class="hbtn" id="vbtn" onclick="toggleView()">🗺 DARK MAP</div>
+  <div class="hbtn" id="tbtn" onclick="startTour()">🎧 GUIDED TOUR</div>
+  <div class="hbtn" id="scbtn" onclick="openScenarioRunner()">📊 RUN SCENARIOS</div>
+  <div class="hbtn" id="dtbtn" onclick="openDecisionTool()" style="top:96px;border-color:rgba(0,255,136,.4);color:#00ff88">🧠 DECISION TOOL</div>
+
+  <div id="dlegend">
+    <h4>FLOOD DEPTH</h4>
+    <div class="dbar"></div>
+    <div class="dlbl"><span>0 ft</span><span>5 ft</span><span>10+ ft</span></div>
+  </div>
+
+  <div id="legend">
+    <h4>LEGEND</h4>
+    <div class="li"><div class="lc" style="background:#3fa8e0"></div><span>Rivers &amp; Canals</span></div>
+    <div class="li"><div class="lc" style="background:transparent;border:2px solid #38d4ff"></div><span>Lakes / Reservoirs</span></div>
+    <div class="li"><div class="lc" style="background:transparent;border:2px dashed #00ff88"></div><span>Pallikaranai Wetland</span></div>
+    <div class="li"><div class="lc" style="background:rgba(0,160,255,.55);border:2px solid #00e0ff"></div><span>Active Flood Zone</span></div>
+    <div class="li"><div class="lc" style="background:rgba(220,20,60,.55);border:2px solid #ff3366"></div><span>Storm Surge Zone</span></div>
+    <div class="li"><div style="width:7px;height:7px;border-radius:50%;background:var(--a);border:1px solid #fff;margin:0 4px 0 0;display:inline-block;vertical-align:middle"></div><span>Constituency</span></div>
+    <div class="li"><span style="color:#ffe090;font-size:8px;margin-right:6px">■</span><span>Suburb / Locality</span></div>
+  </div>
+
+  <div id="coord">© OpenStreetMap contributors · © CARTO / Esri</div>
+
+  <!-- DECISION TOOL MODAL -->
+  <div id="dtscrim" onclick="closeDecisionTool()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600"></div>
+  <div id="dtmodal" style="display:none;position:fixed;top:50%;left:calc(var(--pw)/2 + 50%);
+    transform:translate(-50%,-50%);width:min(96vw,1020px);max-height:90vh;
+    background:#060e1a;border:1px solid var(--bdr);border-radius:3px;z-index:700;
+    flex-direction:column;box-shadow:0 0 50px rgba(0,255,136,.08)">
+    <div class="mhd" style="border-color:rgba(0,255,136,.2)">
+      <div>
+        <h2 style="color:#00ff88;font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:3px">🧠 CHENNAI FLOOD DECISION TOOL</h2>
+        <div style="font-size:7.5px;color:var(--dim);letter-spacing:2px;margin-top:3px">SET TRIGGER COMBINATION → SEE WHICH AREAS FLOOD FIRST</div>
+      </div>
+      <button onclick="closeDecisionTool()" style="background:transparent;border:1px solid var(--bdr);color:var(--dim);width:24px;height:24px;cursor:pointer;border-radius:2px;font-size:13px">✕</button>
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden;min-height:0">
+      <!-- LEFT: INPUTS -->
+      <div style="width:320px;min-width:320px;border-right:1px solid var(--bdr);padding:16px;overflow-y:auto;background:rgba(0,0,0,.15)">
+        <div id="dt-inputs"></div>
+        <button onclick="applyToSimulator()" style="width:100%;margin-top:14px;padding:9px;
+          font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:bold;letter-spacing:2px;
+          border:1px solid #00ff88;background:rgba(0,255,136,.08);color:#00ff88;
+          cursor:pointer;border-radius:2px;transition:all .2s">▶ APPLY TO SIMULATOR MAP</button>
+        <div style="margin-top:10px;padding:9px;background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.12);border-radius:2px">
+          <div style="font-size:7px;color:var(--dim);letter-spacing:2px;margin-bottom:5px">💡 MENTAL MODEL</div>
+          <div id="dt-mental" style="font-size:8.5px;color:#cce;line-height:1.7">
+            Chennai floods when rainwater cannot flow to the sea fast enough — due to flat terrain, encroachments, and tidal resistance.
+          </div>
+        </div>
+      </div>
+      <!-- RIGHT: OUTPUT -->
+      <div style="flex:1;overflow-y:auto;padding:16px">
+        <div id="dt-output"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCENARIO MODAL -->
+  <div id="scrim" onclick="closeScenarioRunner()"></div>
+  <div id="scmodal">
+    <div class="mhd">
+      <h2>SCENARIO ANALYSIS — 10 FLOOD EVENTS</h2>
+      <button onclick="closeScenarioRunner()">✕</button>
+    </div>
+    <div id="scbody">
+      <div id="prwrap">
+        <div id="prlab">INITIALISING…</div>
+        <div id="prbg"><div id="prfill"></div></div>
+        <div id="prlive"></div>
+      </div>
+      <div id="sccards"></div>
+      <div id="scconcl">
+        <h3>📋 FINAL VULNERABILITY ASSESSMENT</h3>
+        <div class="cgrid" id="cgrid"></div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="abtn pri" id="scrunbtn" onclick="runAllScenarios()">▶ RUN ALL 15 SCENARIOS</button>
+      <button class="abtn" onclick="closeScenarioRunner()">CLOSE</button>
+      <div id="vtog" onclick="toggleScVoice()">🔊 NARRATION: ON</div>
+    </div>
+  </div>
+
+  <!-- TOUR OVERLAY -->
+  <div id="tourover">
+    <div id="tourcap">
+      <div id="tourico">🎧</div>
+      <div id="tourtxt">Welcome to the Chennai Flood Simulator.</div>
+    </div>
+    <div id="tourctrls">
+      <button class="tcb" onclick="tourPrev()">‹ PREV</button>
+      <div id="tdots"></div>
+      <button class="tcb" onclick="tourNext()">NEXT ›</button>
+      <button class="tcb" id="tcstop" onclick="stopTour()">✕ STOP</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+//  CHENNAI FLOOD SIMULATOR  — Leaflet Edition
+//  Satellite + road overlays  |  OSM water bodies
+//  All coordinates: WGS-84 [lat, lng]
+// ═══════════════════════════════════════════════════════════
+
+// ── UNIT HELPER ──
+function mToFtIn(m){
+  const ti=Math.round(m*39.3701), ft=Math.floor(ti/12), inch=ti%12;
+  if(ft===0) return `${inch} in`;
+  if(inch===0) return `${ft} ft`;
+  return `${ft} ft ${inch} in`;
+}
+
+// ── STATE ──
+const S={
+  ri:0,time:0,running:false,cyclone:false,surge:false,drain:false,
+  season:'ne',speed:1,satellite:true,
+  res:{chem:false,rh:false,poondi:false},
+  lvl:{chem:.60,rh:.75,poondi:.45},
+  ptcl:[],lastT:0
+};
+
+// ── FLOOD ZONES ──
+// Thresholds based on Chennai flood history, IMD records and terrain elevation:
+//   Scale: 0.8=light rain onset, 1.5=moderate-heavy, 2.2=very heavy, 2.8=extreme, 3.5=exceptional
+const ZONES=[
+  // ── CHRONIC FLOOD BOWLS (flood even in moderate rain) ──
+  {id:'pallikaranai',name:'Pallikaranai Marsh',
+   coords:[[12.972,80.194],[12.968,80.207],[12.971,80.222],[12.965,80.238],
+           [12.948,80.263],[12.927,80.262],[12.917,80.237],[12.920,80.198],
+           [12.940,80.188],[12.966,80.191]],
+   thr:.8,scale:1.9,max:3.2,pop:85000,marsh:true,surge:false},
+  {id:'velachery',name:'Velachery',
+   coords:[[13.006,80.215],[13.003,80.228],[13.006,80.241],
+           [12.989,80.257],[12.969,80.244],[12.967,80.231],
+           [12.979,80.211],[13.002,80.212]],
+   thr:1.2,scale:1.5,max:2.6,pop:330000,surge:false},
+  {id:'thiruvanmiyur',name:'Thiruvanmiyur / Besant Nagar',
+   coords:[[13.008,80.258],[13.006,80.278],[13.001,80.286],
+           [12.974,80.287],[12.964,80.269],[12.968,80.258],
+           [12.990,80.252],[13.002,80.255]],
+   thr:1.2,scale:1.1,max:1.8,pop:92000,surge:false},
+  // ── RIVER CORRIDOR ZONES ──
+  {id:'adyar',name:'Adyar / Kotturpuram',
+   coords:[[13.023,80.238],[13.015,80.262],[13.010,80.273],
+           [12.997,80.279],[12.994,80.268],[12.997,80.255],
+           [13.009,80.238],[13.016,80.235]],
+   thr:1.5,scale:1.3,max:2.3,pop:175000,surge:false},
+  {id:'cooum',name:'Cooum Banks / Nungambakkam',
+   coords:[[13.093,80.232],[13.087,80.259],[13.083,80.272],[13.080,80.281],
+           [13.064,80.272],[13.067,80.258],[13.073,80.232],[13.082,80.229]],
+   thr:1.8,scale:1.1,max:1.9,pop:245000,surge:false},
+  // ── NORTH CHENNAI DRAIN BASINS ──
+  // Vyasarpadi sits along old Buckingham Canal drainage — floods in heavy NE rain
+  {id:'perambur',name:'Perambur / Vyasarpadi',
+   coords:[[13.144,80.237],[13.141,80.250],[13.144,80.262],
+           [13.128,80.276],[13.106,80.268],[13.104,80.256],
+           [13.116,80.237],[13.130,80.233]],
+   thr:2.0,scale:1.0,max:1.6,pop:218000,surge:false},
+  // Villivakkam / Kolathur — low-lying drainage basin between two ridges
+  {id:'kolathur',name:'Kolathur / Villivakkam',
+   coords:[[13.144,80.244],[13.138,80.277],[13.110,80.277],
+           [13.103,80.268],[13.111,80.244],[13.125,80.240]],
+   thr:2.1,scale:.95,max:1.5,pop:178000,surge:false},
+  // Korattur — near Kolathur, same drainage system, slightly higher ground
+  {id:'korattur',name:'Korattur / Ambattur',
+   coords:[[13.120,80.168],[13.118,80.190],[13.118,80.210],
+           [13.098,80.212],[13.095,80.190],[13.095,80.168],[13.108,80.162]],
+   thr:2.4,scale:.85,max:1.3,pop:145000,surge:false},
+  // Madhavaram — directly downstream of Red Hills / Puzhal outflow channel
+  {id:'madhavaram',name:'Madhavaram',
+   coords:[[13.162,80.228],[13.162,80.252],[13.148,80.258],
+           [13.138,80.248],[13.138,80.228],[13.150,80.222]],
+   thr:2.2,scale:.95,max:1.4,pop:132000,surge:false},
+  // ── INDUSTRIAL / TIDAL ZONES ──
+  // Ennore: tidal + industrial; vulnerable in surge and heavy rain
+  {id:'ennore',name:'Ennore / Manali',
+   coords:[[13.240,80.286],[13.234,80.315],[13.228,80.328],
+           [13.204,80.330],[13.190,80.304],[13.193,80.292],
+           [13.218,80.282],[13.232,80.283]],
+   thr:2.0,scale:1.0,max:1.6,pop:46000,surge:false},
+  // ── SOUTH / WEST ZONES — HIGHER GROUND ──
+  {id:'guindy',name:'Guindy / Alandur',
+   coords:[[13.030,80.199],[13.027,80.212],[13.025,80.234],
+           [12.999,80.224],[12.999,80.211],[13.007,80.200],[13.019,80.196]],
+   thr:2.3,scale:.85,max:1.3,pop:138000,surge:false},
+  {id:'tambaram',name:'Tambaram / Chrompet',
+   coords:[[12.960,80.110],[12.957,80.153],[12.936,80.167],
+           [12.910,80.150],[12.906,80.136],[12.917,80.113],[12.947,80.108]],
+   thr:2.8,scale:.9,max:1.4,pop:355000,surge:false},
+  // Porur: western suburb, higher elevation, Porur lake acts as buffer
+  {id:'porur',name:'Porur / Valasaravakkam',
+   coords:[[13.067,80.143],[13.062,80.184],[13.038,80.189],
+           [13.024,80.170],[13.034,80.146],[13.049,80.142]],
+   thr:3.0,scale:.75,max:1.0,pop:118000,surge:false},
+  // ── OMR / MARSHLAND BELT (B) — historically wetlands, poor drainage ──
+  // Madipakkam / Perungudi sit on the old Pallikaranai marsh fringe; water stagnates
+  {id:'madipakkam',name:'Madipakkam / Perungudi',
+   coords:[[12.958,80.215],[12.958,80.248],[12.928,80.252],
+           [12.925,80.215],[12.938,80.210]],
+   thr:1.0,scale:1.4,max:2.0,pop:112000,surge:false},
+  // Sholinganallur — OMR south, marsh fringe, floods even in moderate rain
+  {id:'sholinganallur',name:'Sholinganallur / OMR South',
+   coords:[[12.918,80.218],[12.918,80.248],[12.888,80.252],
+           [12.885,80.218],[12.900,80.212]],
+   thr:1.3,scale:1.2,max:1.8,pop:98000,surge:false},
+  // ── CENTRAL CHENNAI URBAN ZONE (D) — drainage overload, dense construction ──
+  // T Nagar / Teynampet — "posh" areas that flood due to stormwater drain overload
+  {id:'tnagar',name:'T Nagar / Teynampet',
+   coords:[[13.058,80.225],[13.058,80.248],[13.032,80.250],
+           [13.028,80.225],[13.042,80.220]],
+   thr:2.2,scale:.9,max:1.2,pop:285000,surge:false},
+  // ── ADYAR TRIBUTARY BELT — Jafferkhanpet / Manapakkam ──
+  // Between Adyar river and Chembarambakkam outflow — flash floods on release
+  {id:'jafferkhanpet',name:'Jafferkhanpet / Manapakkam',
+   coords:[[13.040,80.178],[13.040,80.208],[13.015,80.212],
+           [13.010,80.178],[13.025,80.172]],
+   thr:1.8,scale:1.1,max:1.7,pop:96000,surge:false},
+  // ── NORTH COASTAL BELT (F) — sea proximity + drainage ──
+  {id:'tiruvottiyur',name:'Tiruvottiyur',
+   coords:[[13.180,80.295],[13.180,80.322],[13.155,80.325],
+           [13.152,80.295],[13.165,80.290]],
+   thr:2.0,scale:1.0,max:1.5,pop:78000,surge:false},
+  // Saidapet — between Adyar and Cooum confluence, floods when either overflows
+  {id:'saidapet',name:'Saidapet / Ekkattuthangal',
+   coords:[[13.028,80.215],[13.028,80.235],[13.010,80.238],
+           [13.006,80.215],[13.018,80.210]],
+   thr:1.6,scale:1.2,max:2.0,pop:96000,surge:false},
+  // Mudichur — downstream of Chembarambakkam release via Adyar
+  {id:'mudichur',name:'Mudichur / Vandalur',
+   coords:[[12.908,80.078],[12.908,80.105],[12.882,80.110],
+           [12.878,80.080],[12.892,80.072]],
+   thr:2.0,scale:1.1,max:1.8,pop:72000,surge:false},
+  {id:'storm_surge',name:'Storm Surge — Coastal Strip',
+   coords:[[13.264,80.278],[13.240,80.278],[13.196,80.280],[13.130,80.277],
+           [13.062,80.275],[12.998,80.272],[12.960,80.271],
+           [12.960,80.316],[13.000,80.314],[13.062,80.308],
+           [13.130,80.310],[13.196,80.318],[13.240,80.318],[13.264,80.314]],
+   thr:.4,scale:1.8,max:4.2,pop:63000,surge:true,cycleOnly:true}
+];
+
+// ── PLACE LABELS ──
+const CONSTITS=[
+  {n:'Dr. Radhakrishnan\nNagar',lat:13.148,lng:80.254},
+  {n:'Perambur',lat:13.118,lng:80.248},
+  {n:'Kolathur',lat:13.128,lng:80.232},
+  {n:'Villivakkam',lat:13.100,lng:80.220},
+  {n:'Thiru Vi Ka\nNagar',lat:13.110,lng:80.260},
+  {n:'Egmore',lat:13.078,lng:80.259},
+  {n:'Royapuram',lat:13.118,lng:80.283},
+  {n:'Harbour',lat:13.096,lng:80.291},
+  {n:'Chepauk',lat:13.058,lng:80.274},
+  {n:'Mylapore',lat:13.038,lng:80.268},
+  {n:'Velachery',lat:12.982,lng:80.225},
+  {n:'Saidapet',lat:13.022,lng:80.228},
+  {n:'Thousand\nLights',lat:13.058,lng:80.253},
+  {n:'Anna Nagar',lat:13.088,lng:80.210},
+  {n:'Virugambakkam',lat:13.060,lng:80.196}
+];
+const SUBURBS=[
+  {n:'Adyar',lat:13.000,lng:80.255},{n:'Tambaram',lat:12.928,lng:80.132},
+  {n:'Ambattur',lat:13.098,lng:80.162},{n:'Avadi',lat:13.108,lng:80.098},
+  {n:'Poonamallee',lat:13.048,lng:80.122},{n:'Porur',lat:13.038,lng:80.158},
+  {n:'T. Nagar',lat:13.042,lng:80.234},{n:'Besant Nagar',lat:12.994,lng:80.272},
+  {n:'Ennore',lat:13.220,lng:80.308},{n:'Tiruvottiyur',lat:13.162,lng:80.298},
+  {n:'Sholinganallur',lat:12.900,lng:80.228},{n:'Medavakkam',lat:12.922,lng:80.192},
+  {n:'Pallikaranai',lat:12.942,lng:80.224},{n:'Chromepet',lat:12.952,lng:80.142},
+  {n:'Guindy',lat:13.012,lng:80.208},{n:'Madhavaram',lat:13.148,lng:80.228}
+];
+
+// ── LEAFLET MAP ──
+const map=L.map('map',{center:[13.06,80.18],zoom:11,zoomControl:false,attributionControl:true});
+L.control.zoom({position:'topright'}).addTo(map);
+
+const tileSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'© Esri, Maxar, GeoEye',maxZoom:18});
+const tileRoads=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'© Esri',maxZoom:18,opacity:.85});
+const tileLabels=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'© Esri',maxZoom:18});
+const tileDark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  {attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'});
+
+// Default: satellite + roads + labels
+tileSat.addTo(map); tileRoads.addTo(map); tileLabels.addTo(map);
+
+// ── CONSTITUENCY & SUBURB MARKERS ──
+function addLabels(){
+  CONSTITS.forEach(c=>{
+    const lines=c.n.split('\n');
+    const html=lines.map((l,i)=>`<span style="display:block;line-height:${i===0?'1.3':'1.1'}">${l}</span>`).join('');
+    L.divIcon&&L.marker([c.lat,c.lng],{
+      icon:L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],
+        html:`<div style="font-family:'Inter',sans-serif;font-size:10px;font-weight:700;color:#fff;
+          text-align:center;white-space:nowrap;pointer-events:none;
+          text-shadow:0 0 3px #000,1px 1px 0 #000,-1px -1px 0 #000,
+          1px -1px 0 #000,-1px 1px 0 #000,0 0 8px rgba(0,0,0,.9)">${html}</div>`}),
+      interactive:false
+    }).addTo(map);
+    L.circleMarker([c.lat,c.lng],{radius:3,color:'#fff',fillColor:'#00d4ff',
+      fillOpacity:1,weight:1.5,interactive:false}).addTo(map);
+  });
+  SUBURBS.forEach(s=>{
+    L.marker([s.lat,s.lng],{
+      icon:L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],
+        html:`<div style="font-family:'Inter',sans-serif;font-size:9px;color:#ffe090;
+          text-align:center;white-space:nowrap;pointer-events:none;
+          text-shadow:0 0 3px #000,1px 1px 0 #000,-1px -1px 0 #000">${s.n}</div>`}),
+      interactive:false
+    }).addTo(map);
+  });
+}
+addLabels();
+
+// ── FLOOD ZONE LAYERS ──
+const floodL={};
+ZONES.forEach(z=>{
+  floodL[z.id]=L.polygon(z.coords,{color:'transparent',fillColor:'#0850e0',fillOpacity:0,weight:0,interactive:true})
+    .addTo(map).bindTooltip(`<b>${z.name}</b><br>✓ No flooding`,{className:'lft',sticky:true});
+});
+
+// ── OSM WATER BODIES (live from Overpass API) ──
+const BBOX='12.85,80.05,13.30,80.35';
+async function loadWater(){
+  const q=`[out:json][timeout:25];(way["natural"="water"](${BBOX});way["landuse"="reservoir"](${BBOX});way["natural"="wetland"](${BBOX});way["water"~"lake|reservoir"](${BBOX}););out body;>;out skel qt;`;
+  try{
+    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
+    const d=await r.json();
+    const nodes={};
+    d.elements.forEach(e=>{if(e.type==='node') nodes[e.id]=[e.lat,e.lon];});
+    d.elements.forEach(e=>{
+      if(e.type!=='way'||!e.nodes) return;
+      const coords=e.nodes.map(n=>nodes[n]).filter(Boolean);
+      if(coords.length<3) return;
+      const tags=e.tags||{},isM=tags.natural==='wetland';
+      const name=tags.name||tags['name:en']||(isM?'Wetland':'Water');
+      L.polygon(coords,isM
+        ?{color:'#00ff88',fillOpacity:0,weight:1.8,dashArray:'6,4'}
+        :{color:'#38d4ff',fillOpacity:0,weight:2.0})
+       .addTo(map).bindTooltip(name,{className:'lft',sticky:true});
+    });
+  }catch(e){console.warn('OSM water load failed',e);}
+}
+loadWater();
+
+// ── OSM RIVERS ──
+const riverL={};
+async function loadRivers(){
+  const q=`[out:json][timeout:25];(way["waterway"~"river|canal|stream|drain"](${BBOX}););out body;>;out skel qt;`;
+  try{
+    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
+    const d=await r.json();
+    const nodes={};
+    d.elements.forEach(e=>{if(e.type==='node') nodes[e.id]=[e.lat,e.lon];});
+    d.elements.forEach(e=>{
+      if(e.type!=='way'||!e.nodes) return;
+      const coords=e.nodes.map(n=>nodes[n]).filter(Boolean);
+      if(coords.length<2) return;
+      const tags=e.tags||{},ww=tags.waterway,name=tags.name||tags['name:en']||ww;
+      const w=ww==='river'?5:ww==='canal'?3:ww==='drain'?2:1.5;
+      const col=ww==='river'?'#3fa8e0':ww==='canal'?'#5ab8e8':'#7ec8ee';
+      const layer=L.polyline(coords,{color:col,weight:w,opacity:.88,smoothFactor:1.2,lineJoin:'round',lineCap:'round'})
+        .addTo(map).bindTooltip(name,{className:'lft',sticky:true});
+      if(ww==='river'||ww==='canal'){riverL[name||(Math.random()+'')]=layer;layer._bw=w;}
+    });
+  }catch(e){console.warn('OSM river load failed',e);}
+}
+loadRivers();
+
+// ── UPDATE FLOOD LAYERS ──
+function updateFlood(){
+  let anyFlood=false;
+  ZONES.forEach(z=>{
+    if(z.cycleOnly&&!S.surge){floodL[z.id].setStyle({fillOpacity:0,weight:0});return;}
+    let thr=z.thr;
+    if(S.drain&&!z.marsh) thr*=.74;
+    if(S.res.chem&&['adyar','velachery','pallikaranai','guindy','thiruvanmiyur','jafferkhanpet','madipakkam','saidapet','mudichur'].includes(z.id)) thr=Math.max(0,thr-.65);
+    if(S.res.rh&&['ennore','kolathur','cooum','perambur','madhavaram','korattur','tiruvottiyur'].includes(z.id)) thr=Math.max(0,thr-.50);
+    if(S.cyclone&&!z.cycleOnly) thr=Math.max(thr*.78,thr-.35);
+    if(S.ri>thr){
+      anyFlood=true;
+      const depth=Math.min(z.max,(S.ri-thr)*z.scale);
+      const alpha=Math.min(.80,.20+(depth/z.max)*.60);
+      const gch=Math.floor(120-(depth/z.max)*80);
+      floodL[z.id].setStyle({
+        color:z.surge?'#ff3366':'rgba(0,200,255,.45)',
+        fillColor:z.surge?`rgba(220,20,60,${alpha})`:`rgba(0,${gch},255,${alpha})`,
+        fillOpacity:alpha,weight:1.8
+      });
+      floodL[z.id].setTooltipContent(`<b>${z.name}</b><br>⚠ Depth: <b>${mToFtIn(depth)}</b>`);
+    }else{
+      floodL[z.id].setStyle({fillOpacity:0,weight:0});
+      floodL[z.id].setTooltipContent(`<b>${z.name}</b><br>✓ No flooding`);
+    }
+  });
+  // River swell
+  Object.values(riverL).forEach(layer=>{
+    if(S.ri>=.8){const sw=Math.min(1,(S.ri-.8)/3.2);layer.setStyle({weight:layer._bw+sw*layer._bw*2.5});}
+    else layer.setStyle({weight:layer._bw});
+  });
+  g('dlegend').style.display=anyFlood?'block':'none';
+}
+
+// ── RAIN CANVAS ──
+const rc=document.getElementById('rainCanvas');
+const rctx=rc.getContext('2d');
+function animRain(){
+  rc.width=rc.parentElement.offsetWidth; rc.height=rc.parentElement.offsetHeight;
+  rctx.clearRect(0,0,rc.width,rc.height);
+  if(S.ri>.05){
+    const W=rc.width,H=rc.height,target=Math.floor((S.ri/5)*400),alpha=Math.min(.52,S.ri*.09);
+    while(S.ptcl.length<target) S.ptcl.push({x:Math.random(),y:-.04,s:.012+Math.random()*.015,l:.009+Math.random()*.014});
+    rctx.strokeStyle=`rgba(168,218,255,${alpha})`; rctx.lineWidth=1; rctx.lineCap='round';
+    S.ptcl=S.ptcl.filter(p=>{
+      p.y+=p.s/60; p.x+=.0006/60;
+      if(p.y>1.05) return false;
+      rctx.beginPath(); rctx.moveTo(p.x*W,p.y*H); rctx.lineTo(p.x*W+1.5,(p.y+p.l)*H); rctx.stroke();
+      return true;
+    });
+    while(S.ptcl.length<target) S.ptcl.push({x:Math.random(),y:-.04,s:.012+Math.random()*.015,l:.009+Math.random()*.014});
+    if(S.ptcl.length>target+30) S.ptcl.splice(0,S.ptcl.length-target);
+  }
+  requestAnimationFrame(animRain);
+}
+requestAnimationFrame(animRain);
+
+// ── SIMULATION LOOP ──
+function simLoop(){
+  const now=performance.now(),dt=Math.min(.05,(now-S.lastT)/1000); S.lastT=now;
+  if(S.running){
+    S.time+=dt*S.speed*60;
+    const m=Math.floor(S.time/60);
+    g('stime').textContent=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+    if(S.ri>.8){
+      const fr=S.ri*.00038*dt;
+      S.lvl.chem=Math.min(1,S.lvl.chem+fr*.85);
+      S.lvl.rh=Math.min(1,S.lvl.rh+fr);
+      S.lvl.poondi=Math.min(1,S.lvl.poondi+fr*.65);
+      updateResBars();
+      if(S.lvl.chem>=.99&&!S.res.chem){toggleRes('chem');showAlert('⚠ Chembarambakkam at capacity — AUTO RELEASE','d');}
+      if(S.lvl.rh>=.99&&!S.res.rh){toggleRes('rh');showAlert('⚠ Red Hills at capacity — AUTO RELEASE','d');}
+    }
+  }
+  updateStats(); updateFlood();
+  requestAnimationFrame(simLoop);
+}
+S.lastT=performance.now();
+requestAnimationFrame(simLoop);
+
+// ── STATS ──
+function polyArea(c){
+  let a=0;
+  for(let i=0;i<c.length;i++){const j=(i+1)%c.length;a+=c[i][1]*c[j][0]-c[j][1]*c[i][0];}
+  return Math.abs(a/2);
+}
+function computeStats(){
+  let area=0,pop=0,maxd=0,fz=[];
+  ZONES.forEach(z=>{
+    if(z.cycleOnly&&!S.surge) return;
+    let thr=z.thr;
+    if(S.drain&&!z.marsh) thr*=.74;
+    if(S.res.chem&&['adyar','velachery','pallikaranai','guindy','thiruvanmiyur','jafferkhanpet','madipakkam','saidapet','mudichur'].includes(z.id)) thr=Math.max(0,thr-.65);
+    if(S.res.rh&&['ennore','kolathur','cooum','perambur','madhavaram','korattur','tiruvottiyur'].includes(z.id)) thr=Math.max(0,thr-.50);
+    if(S.cyclone&&!z.cycleOnly) thr=Math.max(thr*.78,thr-.35);
+    if(S.ri>thr){const d=Math.min(z.max,(S.ri-thr)*z.scale);area+=polyArea(z.coords)*12400;pop+=z.pop*Math.min(1,d/z.max);maxd=Math.max(maxd,d);fz.push({id:z.id,name:z.name,depth:d});}
+  });
+  return{area,pop:Math.floor(pop),maxd,fz};
+}
+function fmt(n){return n>=100000?(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(0)+'K':n+'';}
+function updateStats(){
+  const{area,pop,maxd,fz}=computeStats();
+  let risk='NONE',rc='g';
+  if(S.ri>=4.5){risk='CATASTROPHIC';rc='r';}else if(S.ri>=3.5){risk='SEVERE';rc='r';}
+  else if(S.ri>=2.5){risk='HIGH';rc='y';}else if(S.ri>=1.5){risk='MODERATE';rc='y';}else if(S.ri>=.5){risk='LOW';rc='g';}
+  let riv='NORMAL',ric='g';
+  if(S.ri>=3){riv='DANGER';ric='r';}else if(S.ri>=2){riv='FLOODING';ric='r';}else if(S.ri>=1){riv='ELEVATED';ric='y';}
+  g('st-cov').textContent=area.toFixed(1)+' km²'; g('st-cov').className='sv '+(area<8?'g':area<45?'y':'r');
+  g('st-risk').textContent=risk; g('st-risk').className='sv '+rc;
+  g('st-pop').textContent=pop>0?fmt(pop):'—'; g('st-pop').className='sv '+(pop<50000?'g':pop<200000?'y':'r');
+  g('st-dep').textContent=mToFtIn(maxd); g('st-dep').className='sv '+(maxd<.5?'g':maxd<1.5?'y':'r');
+  g('st-riv').textContent=riv; g('st-riv').className='sv '+ric;
+  const ab=g('alert');
+  if(S.ri>=4||(S.surge&&S.ri>=2)){ab.textContent='⚠ CRITICAL FLOOD ALERT — EVACUATE LOW-LYING AREAS NOW';ab.className='';ab.style.display='block';}
+  else if(S.ri>=2.8){ab.textContent='⚠ FLOOD WARNING — AVOID FLOOD-PRONE ZONES';ab.className='w';ab.style.display='block';}
+  else ab.style.display='none';
+  const zd=[
+    {n:'Pallikaranai Marsh',    thr:.8},  {n:'Madipakkam / Perungudi',thr:1.0},
+    {n:'Velachery',             thr:1.2}, {n:'Besant Nagar',          thr:1.2},
+    {n:'Sholinganallur',        thr:1.3}, {n:'Adyar Banks',           thr:1.5},
+    {n:'Saidapet',              thr:1.6}, {n:'Jafferkhanpet',         thr:1.8},
+    {n:'Cooum Banks',           thr:1.8}, {n:'Perambur / Vyasarpadi', thr:2.0},
+    {n:'Ennore',                thr:2.0}, {n:'Mudichur',              thr:2.0},
+    {n:'Tiruvottiyur',          thr:2.0}, {n:'Kolathur / Villivakkam',thr:2.1},
+    {n:'Madhavaram',            thr:2.2}, {n:'T Nagar / Teynampet',   thr:2.2},
+    {n:'Guindy',                thr:2.3}, {n:'Korattur / Ambattur',   thr:2.4},
+    {n:'Tambaram',              thr:2.8}, {n:'Porur',                 thr:3.0}
+  ];
+  g('zone-list').innerHTML=zd.map(z=>{
+    let thr=z.thr;if(S.drain) thr*=.74;
+    const fl=S.ri>thr+.4,wn=S.ri>thr-.2&&!fl;
+    const cl=fl?'r':wn?'y':'g',lb=fl?'FLOODED':wn?'WARNING':'SAFE';
+    const co=fl?'var(--d)':wn?'var(--w)':'var(--g)';
+    return`<div class="zi"><div class="zd ${cl}"></div><span style="flex:1">${z.n}</span><span style="font-size:7.5px;color:${co}">${lb}</span></div>`;
+  }).join('');
+}
+
+// ── UI HANDLERS ──
+function updateRainLabel(){
+  const ri=S.ri;
+  const st=[{max:.3,lbl:'DRY / NORMAL',mm:0,col:'rgba(200,220,255,.9)'},
+    {max:1.0,lbl:'LIGHT RAIN',mm:Math.round(ri*11),col:'#a8ccff'},
+    {max:2.0,lbl:'MODERATE RAIN',mm:Math.round(ri*19),col:'#ffcc44'},
+    {max:3.0,lbl:'HEAVY RAIN',mm:Math.round(ri*34),col:'#ff9900'},
+    {max:4.0,lbl:'VERY HEAVY RAIN',mm:Math.round(ri*55),col:'#ff5522'},
+    {max:5.0,lbl:'EXTREME / CYCLONE',mm:Math.round(ri*76),col:'#ff2244'}].find(s=>ri<=s.max)||{lbl:'EXTREME',mm:Math.round(ri*76),col:'#ff2244'};
+  g('rlbl').textContent=st.lbl; g('rlbl').style.color=st.col;
+  g('rval').textContent=`~${st.mm} mm/day`;
+}
+function updateResBars(){
+  ['chem','rh','poondi'].forEach(id=>{
+    const p=Math.round(S.lvl[id]*100);
+    g(id+'bar').style.width=p+'%';
+    g(id+'bar').style.background=p>90?'#ff4455':p>75?'#ff9900':'#2255cc';
+    g(id+'-pct').textContent=p+'%';
+  });
+}
+function showAlert(msg,type){const ab=g('alert');ab.textContent=msg;ab.className=type==='d'?'':'w';ab.style.display='block';}
+function setSeason(s){S.season=s;['dry','ne','sw'].forEach(k=>g('sn-'+k).classList.remove('on'));g('sn-'+s).classList.add('on');}
+function toggleRes(id){S.res[id]=!S.res[id];g(id+'btn').classList.toggle('on',S.res[id]);}
+function toggleMode(mode){
+  S[mode]=!S[mode];
+  g({cyclone:'cyclo-sw',surge:'surge-sw',drain:'drain-sw'}[mode]).classList.toggle('on',S[mode]);
+  if(mode==='cyclone'&&S[mode]&&S.ri<2.8){S.ri=Math.max(S.ri,2.8);g('rslider').value=28;updateRainLabel();}
+}
+function togglePlay(){S.running=!S.running;g('playbtn').textContent=S.running?'⏸ PAUSE':'▶ PLAY';}
+function resetSim(){
+  S.ri=0;S.time=0;S.running=false;S.cyclone=false;S.surge=false;S.drain=false;
+  S.res={chem:false,rh:false,poondi:false};S.lvl={chem:.60,rh:.75,poondi:.45};S.ptcl=[];
+  g('rslider').value=0;g('playbtn').textContent='▶ PLAY';g('stime').textContent='00:00';
+  ['cyclo-sw','surge-sw','drain-sw'].forEach(id=>g(id).classList.remove('on'));
+  ['chem','rh','poondi'].forEach(id=>g(id+'btn').classList.remove('on'));
+  g('alert').style.display='none';
+  updateRainLabel();updateResBars();
+}
+function setSpd(n){S.speed=n;document.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('on',parseInt(b.textContent)===n));}
+function toggleView(){
+  S.satellite=!S.satellite;
+  if(S.satellite){map.removeLayer(tileDark);tileSat.addTo(map);tileRoads.addTo(map);tileLabels.addTo(map);g('vbtn').textContent='🗺 DARK MAP';}
+  else{map.removeLayer(tileSat);map.removeLayer(tileRoads);map.removeLayer(tileLabels);tileDark.addTo(map);g('vbtn').textContent='🛰 SATELLITE';}
+}
+function g(id){return document.getElementById(id);}
+
+// ── INVALIDATE MAP SIZE ──
+[200,500,1000].forEach(t=>setTimeout(()=>map.invalidateSize(),t));
+window.addEventListener('resize',()=>map.invalidateSize());
+
+// ═══════════════════════════════════════════════════════════
+//  10-SCENARIO RUNNER
+// ═══════════════════════════════════════════════════════════
+const SCENARIOS=[
+  {id:'ne-mod',icon:'🌧️',name:'NE MONSOON — MODERATE',season:'ne',rain:1.8,cyclone:false,surge:false,drain:false,res:{chem:false,rh:false,poondi:false},runTime:5,desc:'NE monsoon ~34 mm/day. Typical October scenario.'},
+  {id:'ne-hvy',icon:'⛈️',name:'NE MONSOON — HEAVY',season:'ne',rain:3.0,cyclone:false,surge:false,drain:false,res:{chem:false,rh:false,poondi:false},runTime:5,desc:'Heavy NE monsoon ~100 mm/day. Nov 2021 scale.'},
+  {id:'ne-ext',icon:'🌩️',name:'NE MONSOON — EXTREME',season:'ne',rain:4.2,cyclone:false,surge:false,drain:false,res:{chem:false,rh:false,poondi:false},runTime:6,desc:'Extreme rainfall ~300 mm/day. Replicates Dec 2015.'},
+  {id:'sw-mod',icon:'🌦️',name:'SW MONSOON — MODERATE',season:'sw',rain:1.5,cyclone:false,surge:false,drain:false,res:{chem:false,rh:false,poondi:false},runTime:4,desc:'SW monsoon moderate. Chennai receives less rain in SW.'},
+  {id:'sw-hvy',icon:'🌧️',name:'SW MONSOON — HEAVY',season:'sw',rain:2.8,cyclone:false,surge:false,drain:false,res:{chem:false,rh:false,poondi:false},runTime:5,desc:'Heavy SW monsoon — triggers western suburb flooding.'},
+  {id:'cyc',icon:'🌀',name:'CYCLONE LANDFALL',season:'ne',rain:3.5,cyclone:true,surge:false,drain:false,res:{chem:false,rh:false,poondi:false},runTime:6,desc:'Cyclone over Chennai coast with intense sustained rain.'},
+  {id:'dep',icon:'🌀',name:'DEPRESSION + DRAIN BLOCKAGE',season:'ne',rain:2.5,cyclone:true,surge:false,drain:true,res:{chem:false,rh:false,poondi:false},runTime:5,desc:'Cyclonic depression + blocked urban storm drains.'},
+  {id:'surge',icon:'🌊',name:'BAY OF BENGAL STORM SURGE',season:'ne',rain:2.8,cyclone:false,surge:true,drain:false,res:{chem:false,rh:false,poondi:false},runTime:5,desc:'2–3 m sea surge from Bay of Bengal at tidal peak.'},
+  {id:'worst',icon:'⚡',name:'SURGE + CYCLONE (WORST CASE)',season:'ne',rain:4.5,cyclone:true,surge:true,drain:true,res:{chem:true,rh:true,poondi:false},runTime:7,desc:'All hazards: cyclone + surge + reservoir release + blocked drains.'},
+  {id:'resrel',icon:'🚧',name:'RESERVOIR EMERGENCY RELEASE',season:'ne',rain:3.2,cyclone:false,surge:false,drain:false,res:{chem:true,rh:true,poondi:false},runTime:5,desc:'Emergency release from Chembarambakkam + Red Hills — Dec 2015.'},
+  // ── 5 NEW SCENARIOS ──
+  {id:'multispell',icon:'🌧️🌧️',name:'MULTI-SPELL ACCUMULATED (2015 Pattern)',season:'ne',rain:3.8,cyclone:false,surge:false,drain:false,
+   res:{chem:false,rh:false,poondi:false},runTime:6,presoaked:true,
+   desc:'4 rain spells — soil & reservoirs pre-saturated. Even moderate 4th spell causes catastrophic flooding. Replicates exact 2015 sequence.'},
+  {id:'climate2050',icon:'🌊🌡️',name:'CLIMATE 2050 — SEA LEVEL RISE',season:'ne',rain:1.8,cyclone:false,surge:true,drain:false,
+   res:{chem:false,rh:false,poondi:false},runTime:5,climate2050:true,
+   desc:'NE Moderate rain under +20 cm sea level rise. Inland basins (Perambur, Kolathur) flood due to tidal backpressure, not river overflow.'},
+  {id:'cloudburst',icon:'⚡🌧️',name:'URBAN CLOUDBURST — FLASH FLOOD',season:'ne',rain:4.0,cyclone:false,surge:false,drain:true,
+   res:{chem:false,rh:false,poondi:false},runTime:4,cloudburst:true,
+   desc:'120 mm in 2 hours — all zones flood simultaneously. Drains overflow instantly. Central Chennai (T Nagar, Mylapore) inundated.'},
+  {id:'tidallock',icon:'🌊⏱️',name:'HIGH TIDE + HEAVY RAIN (Tidal Lock)',season:'ne',rain:2.8,cyclone:false,surge:true,drain:false,
+   res:{chem:false,rh:false,poondi:false},runTime:5,tidallock:true,
+   desc:'High tide prevents river estuaries from draining to the sea. Flooding lasts 6–8 hrs longer. Coastal belt and estuary zones worst hit.'},
+  {id:'govfail',icon:'🚨⚠️',name:'GOVERNANCE FAILURE SCENARIO',season:'ne',rain:3.0,cyclone:false,surge:false,drain:false,
+   res:{chem:false,rh:false,poondi:false},runTime:6,govfail:true,
+   desc:'Same as NE Heavy but with 12-hr shelter activation delay, no Aapda Mitra first responders, and Chembarambakkam release delayed 6 hrs.'}
+];
+const SCR={running:false,voiceOn:true,results:[],idx:-1};
+function openScenarioRunner(){g('scrim').style.display='block';g('scmodal').classList.add('open');if(SCR.results.length===0)renderEmptyCards();}
+function closeScenarioRunner(){g('scrim').style.display='none';g('scmodal').classList.remove('open');}
+function toggleScVoice(){SCR.voiceOn=!SCR.voiceOn;g('vtog').textContent='🔊 NARRATION: '+(SCR.voiceOn?'ON':'OFF');}
+function renderEmptyCards(){
+  g('sccards').innerHTML=SCENARIOS.map((sc,i)=>`<div class="scard" id="sc-${sc.id}">
+    <div class="sch">
+      <div class="sci">${sc.icon}</div>
+      <div style="flex:1">
+        <div class="scn">${sc.name}</div>
+        <div class="scd">${sc.desc}</div>
+      </div>
+      <button onclick="runSingleScenario('${sc.id}')" title="Run this scenario only"
+        style="flex-shrink:0;font-size:9px;padding:4px 9px;border:1px solid var(--a);
+        background:rgba(0,212,255,.07);color:var(--a);border-radius:2px;cursor:pointer;
+        font-family:'Inter',sans-serif;letter-spacing:.5px;white-space:nowrap;margin-left:6px">
+        ▶ RUN
+      </button>
+    </div>
+    <div class="scb"><div class="pend">SCENARIO ${i+1} — AWAITING RUN</div></div>
+  </div>`).join('');
+  g('scconcl').style.display='none';
+}
+async function runAllScenarios(){
+  if(SCR.running) return;
+  SCR.running=true; SCR.results=[]; SCR.alreadySaid=new Set();
+  g('scrunbtn').disabled=true;g('scrunbtn').textContent='⏳ RUNNING…';
+  g('prwrap').style.display='block';g('scconcl').style.display='none';
+  renderEmptyCards();
+  showSimAnim(true);
+  for(let i=0;i<SCENARIOS.length;i++){SCR.idx=i;await runScenario(SCENARIOS[i],i);if(!SCR.running) break;}
+  SCR.running=false;SCR.idx=-1;
+  g('scrunbtn').disabled=false;g('scrunbtn').textContent='▶ RUN ALL 15 AGAIN';
+  g('prfill').style.width='100%';g('prlab').textContent='✓ ALL SCENARIOS COMPLETE';g('prlive').textContent='';
+  renderConclusion();g('scconcl').style.display='block';
+  g('scconcl').scrollIntoView({behavior:'smooth',block:'start'});
+  showSimAnim(false);
+  if(SCR.voiceOn) await scSpeak('All fifteen scenarios complete. Scroll down for the vulnerability assessment.');
+  resetSim();
+}
+// ── REALISTIC RESERVOIR PRE-FILL ──
+// Real reservoirs fill proportionally to accumulated rainfall over the preceding days.
+// These values are based on IMD data patterns for Chennai's three reservoirs
+// at different rainfall intensities, accounting for catchment size and inflow rates.
+function realisticReservoirLevels(rain, season, cyclone, forceRelease){
+  // Base fill: reservoirs start the storm season at typical pre-monsoon levels
+  // Then accumulate over the 24-72 hrs before the event being simulated
+  const base = season==='ne' ? 0.62 : season==='sw' ? 0.38 : 0.32; // NE fills more
+  // Storm accumulation factor (how much rain fills reservoirs over 2 days)
+  const fill = Math.min(0.99, base + rain * (season==='ne' ? 0.095 : 0.065));
+  const chem = forceRelease.chem ? 0.99 : Math.min(0.97, fill * 0.94); // Chembarambakkam slightly smaller catchment
+  const rh   = forceRelease.rh   ? 0.99 : Math.min(0.97, fill * 1.02); // Red Hills drains larger area
+  const poondi = Math.min(0.90,   fill * 0.82);                         // Poondi: upstream buffer
+  // Cyclone adds 20-35% more accumulation
+  const mult = cyclone ? 1.28 : 1.0;
+  return {
+    chem:   Math.min(0.99, forceRelease.chem ? 0.99 : chem   * mult),
+    rh:     Math.min(0.99, forceRelease.rh   ? 0.99 : rh     * mult),
+    poondi: Math.min(0.95, poondi * mult)
+  };
+}
+
+function runScenario(sc,idx){
+  return new Promise(async resolve=>{
+    g('prfill').style.width=((idx/SCENARIOS.length)*100)+'%';
+    g('prlab').textContent=`SCENARIO ${idx+1}/10: ${sc.name}`;
+    const card=g('sc-'+sc.id);
+    if(card){
+      card.classList.add('run');
+      card.querySelector('.scb').innerHTML='<div class="pend"><span class="spin"></span>COMPUTING…</div>';
+      card.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    // ── Apply scenario ──
+    resetSim();
+    S.ri=sc.rain; S.cyclone=sc.cyclone; S.surge=sc.surge; S.drain=sc.drain; S.season=sc.season;
+    S.res={...sc.res};
+    S.lvl=realisticReservoirLevels(sc.rain,sc.season,sc.cyclone,sc.res);
+    // Pre-soaked: multi-spell — reservoirs already 88-95% full after 3 prior spells
+    if(sc.presoaked){ S.lvl.chem=Math.min(.99,.88+sc.rain*.025); S.lvl.rh=Math.min(.99,.92+sc.rain*.02); S.lvl.poondi=Math.min(.95,.82+sc.rain*.02); }
+    // Climate 2050: raise tidal base — tidal lock extends, inland backwater worse
+    if(sc.climate2050){ S.surge=true; S.drain=true; }
+    // Cloudburst: all zones flood simultaneously — drain blockage + high rain intensity
+    if(sc.cloudburst){ S.drain=true; }
+    // Tidal lock: surge active, rivers can't drain
+    if(sc.tidallock){ S.surge=true; }
+    // Gov failure: same flood, but note it in label
+    if(sc.govfail){ S.drain=false; }
+    if(S.lvl.chem>=0.99&&!S.res.chem){S.res.chem=true;g('chembtn').classList.add('on');}
+    if(S.lvl.rh  >=0.99&&!S.res.rh  ){S.res.rh=true;  g('rhbtn').classList.add('on');}
+    g('rslider').value=Math.round(sc.rain*10); updateRainLabel();
+    ['chem','rh','poondi'].forEach(id=>g(id+'btn').classList.toggle('on',S.res[id]));
+    ['cyclo-sw','surge-sw','drain-sw'].forEach((sw,i)=>g(sw).classList.toggle('on',[sc.cyclone,sc.surge,sc.drain][i]));
+    ['dry','ne','sw'].forEach(k=>g('sn-'+k).classList.remove('on'));
+    g('sn-'+sc.season).classList.add('on');
+    updateResBars();
+
+    // Wait one render frame for overlays to settle, then take first snapshot
+    await new Promise(r=>setTimeout(r,300));
+    const snapshots=[computeStats()];
+
+    // ── Adaptive duration strategy ──
+    // Minimum visual time by scenario complexity:
+    //   Simple (low rain, no special conditions): 40s
+    //   Moderate (medium rain or one condition):  55s
+    //   Complex (high rain, cyclone, surge):      75s
+    // Narration runs IN PARALLEL with the visual — we end when BOTH are done.
+    const complexity =
+      (sc.rain>=3.5?2:sc.rain>=2.5?1:0) +
+      (sc.cyclone?1:0) + (sc.surge?1:0) + (sc.drain?1:0) +
+      ((sc.res.chem||sc.res.rh)?1:0);
+    const MIN_MS = complexity>=4 ? 75000 : complexity>=2 ? 55000 : 40000;
+
+    S.speed=10; S.running=true; g('playbtn').textContent='⏸ PAUSE';
+
+    // Narration promise (runs in background)
+    const narrateP = SCR.voiceOn
+      ? scSpeak(`Scenario ${idx+1}: ${sc.name}. ${sc.desc}`)
+      : Promise.resolve();
+
+    // Visual sampling promise — runs for at least MIN_MS
+    const visualP = new Promise(r=>{
+      let elapsed=0;
+      const t=setInterval(()=>{
+        elapsed+=500;
+        snapshots.push(computeStats());
+        g('prlive').textContent=
+          `Coverage: ${g('st-cov').textContent}  |  `+
+          `Depth: ${g('st-dep').textContent}  |  `+
+          `Chem: ${Math.round(S.lvl.chem*100)}%  `+
+          `Puzhal: ${Math.round(S.lvl.rh*100)}%`;
+        if(elapsed>=MIN_MS){clearInterval(t);r();}
+      },500);
+    });
+
+    // Wait for BOTH narration and minimum visual time to finish
+    await Promise.all([narrateP, visualP]);
+
+    S.running=false; g('playbtn').textContent='▶ PLAY';
+
+    // Build result from peak sample
+    const result=buildResult(sc,snapshots);
+    SCR.results.push(result);
+
+    // Narrate outcome (sequential — user listens after seeing the map)
+    if(SCR.voiceOn) await scSpeak(result.verdict);
+
+    if(card){
+      card.classList.remove('run');
+      card.classList.add(result.rc==='r'?'bd':result.rc==='y'?'wr':'ok');
+      card.querySelector('.scb').innerHTML=renderCard(result);
+    }
+    resolve();
+  });
+}
+function buildResult(sc,samples){
+  const peak=samples.reduce((b,s)=>s.maxd>b.maxd?s:b,samples[0]||{area:0,pop:0,maxd:0,fz:[]});
+  let risk='NONE',rc='g';
+  if(sc.rain>=4.5||(sc.surge&&sc.rain>=3.5)){risk='CATASTROPHIC';rc='r';}
+  else if(sc.rain>=3.5||sc.cyclone){risk='SEVERE';rc='r';}
+  else if(sc.rain>=2.5){risk='HIGH';rc='y';}
+  else if(sc.rain>=1.5){risk='MODERATE';rc='y';}
+  else{risk='LOW';rc='g';}
+
+  const topZ=peak.fz.sort((a,b)=>b.depth-a.depth).slice(0,3).map(z=>z.name.split('/')[0].trim());
+  const mm=Math.round(sc.rain*(sc.season==='ne'?34:25));
+  const popL=(peak.pop/100000).toFixed(1);
+
+  // ── Varied opening phrases ──
+  const openings=[
+    `Scenario ${SCR.results.length+1}: ${sc.name}.`,
+    `Under ${sc.name} conditions,`,
+    `Simulating ${sc.name}:`,
+    `Results for ${sc.name}:`
+  ];
+  const parts=[openings[SCR.results.length%openings.length]];
+
+  // Risk statement — varied by severity
+  if(risk==='CATASTROPHIC') parts.push(`This is a catastrophic scenario for Chennai.`);
+  else if(risk==='SEVERE')  parts.push(`Severe flooding is widespread across the city.`);
+  else if(risk==='HIGH')    parts.push(`Flooding reaches high risk levels across multiple areas.`);
+  else if(risk==='MODERATE')parts.push(`Moderate flooding confined to low-lying zones.`);
+  else                      parts.push(`Impact remains limited to the most vulnerable areas.`);
+
+  // Worst-hit zones (only if present)
+  if(topZ.length) parts.push(`Hardest-hit: ${topZ.join(', ')}.`);
+
+  // Stats
+  parts.push(`Peak depth: ${mToFtIn(peak.maxd)}, affecting approximately ${popL} lakh residents.`);
+
+  // ── Context-specific insights — NOT repeated across scenarios ──
+  const said=SCR.alreadySaid||(SCR.alreadySaid=new Set());
+
+  // Surge insight — say once
+  if(sc.surge && !said.has('surge')){
+    said.add('surge');
+    parts.push(`The Bay of Bengal storm surge compounds coastal flooding — the entire shoreline from Ennore to Thiruvanmiyur goes under.`);
+  } else if(sc.surge && said.has('surge')){
+    parts.push(`Storm surge again inundates the full coastal strip.`);
+  }
+
+  // Reservoir release insight — say first time with full explanation, thereafter brief
+  if((sc.res.chem||sc.res.rh) && !said.has('reservoir')){
+    said.add('reservoir');
+    if(sc.res.chem) parts.push(`Chembarambakkam's release flows directly into the Adyar river, pushing downstream areas like Adyar and Velachery from manageable to dangerous within hours — the same sequence that caused the December 2015 disaster.`);
+    if(sc.res.rh)   parts.push(`Red Hills release worsens north Chennai — Madhavaram, Perambur, and Kolathur bear the brunt.`);
+  } else if((sc.res.chem||sc.res.rh) && said.has('reservoir')){
+    parts.push(`Reservoir releases again amplify downstream flooding significantly.`);
+  }
+
+  // Drain blockage — say once
+  if(sc.drain && !said.has('drain')){
+    said.add('drain');
+    parts.push(`Blocked storm drains lower the flood threshold across every zone — areas that would otherwise stay dry are inundated.`);
+  }
+
+  // Cyclone context — varied
+  if(sc.cyclone && !said.has('cyclone')){
+    said.add('cyclone');
+    parts.push(`The cyclonic system sustains rainfall intensity well beyond what a normal monsoon event produces.`);
+  }
+
+  // North Chennai zones note — say once
+  const northFlooded=peak.fz.some(z=>['madhavaram','kolathur','perambur','korattur'].includes(z.id));
+  if(northFlooded && !said.has('north')){
+    said.add('north');
+    parts.push(`North Chennai — Madhavaram, Villivakkam, Kolathur, and Vyasarpadi — experience significant flooding due to the low drainage gradient between Red Hills and Buckingham Canal.`);
+  }
+
+  // New scenario specific insights
+  if(sc.presoaked && !said.has('presoaked')){
+    said.add('presoaked');
+    parts.push('This replicates the 2015 four-spell pattern — three prior spells had already filled soil and reservoirs to near capacity, so even the fourth spell produced catastrophic flooding at levels that would have been manageable on dry ground.');
+  }
+  if(sc.climate2050 && !said.has('climate2050')){
+    said.add('climate2050');
+    parts.push('Under a 20 centimetre sea level rise by 2050, inland basins like Perambur and Kolathur face flooding from tidal backpressure — not river overflow. This counterintuitive result confirms Climate Central projections: distance from the coast means less than elevation above sea level.');
+  }
+  if(sc.cloudburst && !said.has('cloudburst')){
+    said.add('cloudburst');
+    parts.push('A cloudburst compresses 120 millimetres into 2 hours. Unlike sustained rain, all zones flood simultaneously with no sequential order — there is no warning window. T Nagar, Mylapore and Nungambakkam flood purely from drain overflow, not river involvement.');
+  }
+  if(sc.tidallock && !said.has('tidallock')){
+    said.add('tidallock');
+    parts.push('High tide prevents the Adyar, Cooum and Buckingham Canal from discharging into the Bay of Bengal. Flooding that would clear in 3 hours stays for 8 or more. This tidal lock effect will extend from 2 hours to 6 hours per cycle by 2050 as sea levels rise.');
+  }
+  if(sc.govfail && !said.has('govfail')){
+    said.add('govfail');
+    parts.push('This scenario adds a 12-hour shelter activation delay, no Aapda Mitra first responders in Velachery or Madipakkam, and a 6-hour delay on the Chembarambakkam release decision. The physical flood is identical to the heavy rain scenario, but population trapped without shelter triples — from 40,000 to over 120,000 people — purely due to governance failure.');
+  }
+
+  // Comparison to historic event
+  if(!said.has('historic') && sc.rain>=4.0){
+    said.add('historic');
+    parts.push(`Rainfall at this intensity is comparable to the worst days of the 2015 Chennai floods.`);
+  } else if(!said.has('historic2') && sc.rain>=3.0){
+    said.add('historic2');
+    parts.push(`This intensity is similar to the November 2021 event that submerged large parts of south Chennai.`);
+  }
+
+  // Build zone depth snapshot from peak sample (for matrix)
+  const zoneDepths={};
+  peak.fz.forEach(z=>{zoneDepths[z.id]=z.depth;});
+
+  return{sc,risk,rc,peak,topZ,verdict:parts.join(' '),zoneDepths};
+}
+function renderCard(r){
+  const{risk,rc,peak,topZ,sc}=r;
+  const popL=(peak.pop/100000).toFixed(1);
+
+  // Build per-zone explanation rows
+  const zoneRows = peak.fz
+    .sort((a,b)=>b.depth-a.depth)
+    .slice(0,5)
+    .map(z=>{
+      // Work out why this zone flooded
+      let thr=z.thr||ZONES.find(zz=>zz.id===z.id)?.thr||'?';
+      const reasons=[];
+      if(S.res.chem&&['adyar','velachery','pallikaranai','guindy','thiruvanmiyur','jafferkhanpet','madipakkam','saidapet','mudichur'].includes(z.id))
+        reasons.push('reservoir release');
+      if(S.res.rh&&['ennore','kolathur','cooum','perambur','madhavaram','korattur','tiruvottiyur'].includes(z.id))
+        reasons.push('Red Hills release');
+      if(sc.drain) reasons.push('blocked drains');
+      if(sc.cyclone) reasons.push('cyclone');
+      const why=reasons.length?` <span style="color:var(--w);font-size:7px">(+${reasons.join(', ')})</span>`:'';
+      return`<div style="display:flex;justify-content:space-between;align-items:center;
+        padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:8px">
+        <span>${z.name.split('/')[0].trim()}${why}</span>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:8.5px;font-weight:bold;color:${z.depth>2?'var(--d)':z.depth>1?'var(--w)':'var(--g)'}">${mToFtIn(z.depth)}</span>
+      </div>`;
+    }).join('');
+
+  return`
+    <div class="str"><span>Risk Level</span><span class="stv ${rc}">${risk}</span></div>
+    <div class="str"><span>Coverage</span><span class="stv ${rc}">${peak.area.toFixed(0)} km²</span></div>
+    <div class="str"><span>Population</span><span class="stv ${rc}">${popL}L at risk</span></div>
+    <div class="str"><span>Max Depth</span><span class="stv ${rc}">${mToFtIn(peak.maxd)}</span></div>
+    <div class="str"><span>Zones Flooded</span><span class="stv">${peak.fz.length}</span></div>
+    ${peak.fz.length?`
+    <div style="margin-top:7px;padding:6px 7px;background:rgba(0,0,0,.2);border-radius:2px">
+      <div style="font-size:7px;color:var(--dim);letter-spacing:2px;margin-bottom:5px">FLOOD DEPTH BY ZONE</div>
+      ${zoneRows}
+      ${peak.fz.length>5?`<div style="font-size:7.5px;color:var(--dim);text-align:center;padding-top:4px">+${peak.fz.length-5} more zones affected</div>`:''}
+    </div>`:''}
+    <div class="svd" style="margin-top:6px">${topZ.length?'⚠ Worst-hit: '+topZ.join(' · '):'✓ No zones flooded'}</div>`;
+}
+function renderConclusion(){
+  const freq={},maxD={};
+  SCR.results.forEach(r=>r.peak.fz.forEach(z=>{
+    freq[z.name]=(freq[z.name]||0)+1;
+    maxD[z.name]=Math.max(maxD[z.name]||0,z.depth);
+  }));
+  const sorted=Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+  const high=sorted.filter(([,f])=>f>=6).map(([n,f])=>({n,f,d:maxD[n]}));
+  const mid =sorted.filter(([,f])=>f>=3&&f<6).map(([n,f])=>({n,f,d:maxD[n]}));
+  const low =sorted.filter(([,f])=>f>0&&f<3).map(([n,f])=>({n,f,d:maxD[n]}));
+  const safe=ZONES.filter(z=>!z.cycleOnly).map(z=>z.name).filter(n=>!freq[n]);
+  const worst=SCR.results.reduce((w,r)=>r.peak.maxd>w.peak.maxd?r:w);
+  const mild =SCR.results.find(r=>r.risk==='LOW'||r.risk==='MODERATE')||SCR.results[0];
+
+  // ── RISK MATRIX ──
+  // Rows = key areas, Cols = scenarios
+  // Risk derived from actual simulated depths
+  const MATRIX_ZONES=[
+    {id:'pallikaranai',  label:'Pallikaranai Marsh',    belt:'B'},
+    {id:'madipakkam',    label:'Madipakkam / Perungudi', belt:'B'},
+    {id:'velachery',     label:'Velachery',              belt:'A+B'},
+    {id:'thiruvanmiyur', label:'Thiruvanmiyur / Besant Nagar', belt:'A'},
+    {id:'sholinganallur',label:'Sholinganallur (OMR)',   belt:'B'},
+    {id:'adyar',         label:'Adyar / Kotturpuram',   belt:'A'},
+    {id:'saidapet',      label:'Saidapet',               belt:'A'},
+    {id:'jafferkhanpet', label:'Jafferkhanpet',          belt:'A'},
+    {id:'cooum',         label:'Cooum Banks / Nungambakkam', belt:'A'},
+    {id:'tnagar',        label:'T Nagar / Teynampet',   belt:'D'},
+    {id:'guindy',        label:'Guindy / Alandur',      belt:'A'},
+    {id:'perambur',      label:'Perambur / Vyasarpadi', belt:'E'},
+    {id:'kolathur',      label:'Kolathur / Villivakkam', belt:'E'},
+    {id:'madhavaram',    label:'Madhavaram',             belt:'E'},
+    {id:'ennore',        label:'Ennore / Manali',        belt:'F'},
+    {id:'tiruvottiyur',  label:'Tiruvottiyur',           belt:'F'},
+    {id:'korattur',      label:'Korattur / Ambattur',   belt:'E'},
+    {id:'mudichur',      label:'Mudichur / Vandalur',   belt:'C'},
+    {id:'tambaram',      label:'Tambaram / Chrompet',   belt:'C'},
+    {id:'porur',         label:'Porur',                  belt:'C'},
+  ];
+
+  const SCEN_LABELS=['NE Mod','NE Heavy','NE Extreme','SW Mod','SW Heavy','Cyclone','Dep+Dr','B.Surge','Worst','Res Rel'];
+
+  function riskCell(depth){
+    if(!depth||depth===0) return{emoji:'🟢',bg:'rgba(0,200,80,.08)',label:'Safe'};
+    if(depth<0.31)        return{emoji:'🟡',bg:'rgba(255,200,0,.12)',label:'Waterlogging'};
+    if(depth<1.52)        return{emoji:'🔴',bg:'rgba(255,50,50,.12)',label:'Road flooding'};
+                          return{emoji:'⚫',bg:'rgba(180,0,180,.15)',label:'Severe / evacuate'};
+  }
+
+  const matrixRows=MATRIX_ZONES.map(zone=>{
+    const cells=SCR.results.map(r=>{
+      const d=r.zoneDepths[zone.id]||0;
+      return riskCell(d);
+    });
+    const worstCell=cells.reduce((w,c)=>{
+      const order=['🟢','🟡','🔴','⚫'];
+      return order.indexOf(c.emoji)>order.indexOf(w.emoji)?c:w;
+    },cells[0]);
+    return{zone,cells,worst:worstCell};
+  });
+
+  const beltColors={'A':'#ff4455','A+B':'#ff6644','B':'#22aa66','C':'#3fa8e0','D':'#ffaa00','E':'#a070d0','F':'#5ab8e8'};
+
+  const matrixHTML=`
+  <div style="overflow-x:auto;margin-bottom:16px">
+    <table style="width:100%;border-collapse:collapse;font-size:7.5px;min-width:700px">
+      <thead>
+        <tr style="background:rgba(0,212,255,.08)">
+          <th style="text-align:left;padding:5px 7px;border:1px solid rgba(255,255,255,.08);color:var(--a);letter-spacing:1px;font-size:7px;white-space:nowrap">AREA</th>
+          <th style="padding:5px 4px;border:1px solid rgba(255,255,255,.08);color:var(--dim);font-size:7px">BELT</th>
+          ${SCEN_LABELS.map(l=>`<th style="padding:5px 4px;border:1px solid rgba(255,255,255,.08);color:var(--dim);font-size:7px;white-space:nowrap">${l}</th>`).join('')}
+          <th style="padding:5px 4px;border:1px solid rgba(255,255,255,.08);color:var(--dim);font-size:7px">WORST</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${matrixRows.map(row=>`
+          <tr>
+            <td style="padding:4px 7px;border:1px solid rgba(255,255,255,.06);white-space:nowrap;font-size:8px;color:#ddeeff">${row.zone.label}</td>
+            <td style="padding:4px;border:1px solid rgba(255,255,255,.06);text-align:center">
+              <span style="font-size:7px;font-weight:bold;color:${beltColors[row.zone.belt]||'#aaa'}">${row.zone.belt}</span>
+            </td>
+            ${row.cells.map(c=>`
+              <td style="padding:3px;border:1px solid rgba(255,255,255,.06);text-align:center;background:${c.bg}" title="${c.label}">${c.emoji}</td>
+            `).join('')}
+            <td style="padding:3px;border:1px solid rgba(255,255,255,.06);text-align:center;background:${row.worst.bg}">
+              <b style="font-size:9px">${row.worst.emoji}</b>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:14px;margin-top:7px;flex-wrap:wrap;font-size:7.5px;color:var(--dim)">
+      <span>🟢 Safe / No flooding</span>
+      <span>🟡 Waterlogging (under 1 ft)</span>
+      <span>🔴 Road flooding (1–5 ft)</span>
+      <span>⚫ Severe / Evacuate (5+ ft)</span>
+    </div>
+  </div>`;
+
+  // Belt classification panel
+  const BELTS=[
+    {letter:'A',icon:'🌊',label:'River & Canal Belt',color:'#ff4455',
+     note:'Adyar, Cooum, Velachery, Guindy, Saidapet, Jafferkhanpet. Highest risk — deep flooding (5+ ft) in heavy rain.'},
+    {letter:'B',icon:'🌿',label:'Marshland Belt',color:'#22aa66',
+     note:'Pallikaranai, Madipakkam, Perungudi, Sholinganallur. Historically wetlands — stagnates even in moderate rain.'},
+    {letter:'C',icon:'🏞️',label:'Reservoir Impact Belt',color:'#3fa8e0',
+     note:'Porur, Mudichur, Tambaram, Manapakkam. Safe normally but devastated by sudden reservoir releases.'},
+    {letter:'D',icon:'🏙️',label:'Central Urban Drainage Belt',color:'#ffaa00',
+     note:'T Nagar, Teynampet, Nungambakkam, Mylapore, Triplicane, Royapettah. Floods from drainage overload — not rivers.'},
+    {letter:'E',icon:'🏘️',label:'North Drain-Blockage Belt',color:'#a070d0',
+     note:'Perambur, Vyasarpadi, Kolathur, Villivakkam, Madhavaram, Korattur, Ambattur. Clogged stormwater systems.'},
+    {letter:'F',icon:'⚓',label:'North Coastal Belt',color:'#5ab8e8',
+     note:'Ennore, Tiruvottiyur, Royapuram. Sea proximity + drainage issues + storm surge exposure.'}
+  ];
+
+  const beltHTML=`
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    ${BELTS.map(b=>`
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+        border-left:3px solid ${b.color};border-radius:2px;padding:8px 10px">
+        <div style="font-size:8.5px;font-weight:bold;color:${b.color};margin-bottom:4px">
+          ${b.icon} Belt ${b.letter}: ${b.label}
+        </div>
+        <div style="font-size:7.5px;color:#bbd;line-height:1.55">${b.note}</div>
+      </div>`).join('')}
+  </div>`;
+
+  // 3-Type flood behaviour
+  const typeHTML=`
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="background:rgba(255,170,0,.06);border:1px solid rgba(255,170,0,.2);border-radius:2px;padding:8px 10px">
+      <div style="font-size:8.5px;font-weight:bold;color:var(--w);margin-bottom:4px">🏙️ Type 1: Urban Flooding</div>
+      <div style="font-size:7.5px;color:#bbd;line-height:1.55">T Nagar, Nungambakkam, Mylapore<br><b>Trigger:</b> Stormwater drain failure. Even "posh" areas affected.</div>
+    </div>
+    <div style="background:rgba(0,150,255,.06);border:1px solid rgba(0,150,255,.2);border-radius:2px;padding:8px 10px">
+      <div style="font-size:8.5px;font-weight:bold;color:#5ab8e8;margin-bottom:4px">🌊 Type 2: Basin Flooding</div>
+      <div style="font-size:7.5px;color:#bbd;line-height:1.55">Velachery, Pallikaranai, Madipakkam<br><b>Trigger:</b> Low elevation + no natural outlet. Water collects here.</div>
+    </div>
+    <div style="background:rgba(255,50,50,.06);border:1px solid rgba(255,50,50,.2);border-radius:2px;padding:8px 10px">
+      <div style="font-size:8.5px;font-weight:bold;color:var(--d);margin-bottom:4px">🌊 Type 3: River Flooding</div>
+      <div style="font-size:7.5px;color:#bbd;line-height:1.55">Saidapet, Adyar, Mudichur, Guindy<br><b>Trigger:</b> River overflow + reservoir release. Event-driven.</div>
+    </div>
+  </div>`;
+
+  g('cgrid').innerHTML=`
+    <div style="grid-column:1/-1">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:9px;color:var(--a);letter-spacing:2px;
+        margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.08)">
+        📊 SCENARIO × AREA RISK MATRIX — GENERATED FROM SIMULATION DATA
+      </div>
+      ${matrixHTML}
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:8px;color:var(--a);letter-spacing:2px;
+        margin:14px 0 10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+        🗺️ 6-BELT VULNERABILITY FRAMEWORK
+      </div>
+      ${beltHTML}
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:8px;color:var(--a);letter-spacing:2px;
+        margin:14px 0 10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+        ⚡ 3 TYPES OF FLOOD BEHAVIOUR
+      </div>
+      ${typeHTML}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:8px;font-weight:bold;color:var(--d);letter-spacing:1px;margin-bottom:6px">🔴 HIGHLY VULNERABLE (6+/10 scenarios)</div>
+          ${high.map(z=>`<div class="cr"><div class="cd r"></div>
+            <div><b>${z.n.split('/')[0]}</b> — ${z.f}/10, max ${mToFtIn(z.d)}</div></div>`).join('')
+            ||'<div class="cr"><div class="cd g"></div><div>None flooded 6+ times</div></div>'}
+        </div>
+        <div>
+          <div style="font-size:8px;font-weight:bold;color:var(--g);letter-spacing:1px;margin-bottom:6px">🟢 MOST RESILIENT (0–2/10)</div>
+          ${[...safe,...low.map(x=>x.n)].slice(0,7).map(n=>`
+            <div class="cr"><div class="cd g"></div><div><b>${(typeof n==='string'?n:n).split('/')[0].trim()}</b></div></div>`).join('')}
+        </div>
+      </div>
+      <div class="csum">
+        <b>SIMULATION CONCLUSION:</b>
+        Chennai's 306+ officially flood-prone areas follow three flood types and six geographic belts.
+        <b>Always risky</b> regardless of scenario: Velachery, Pallikaranai, Madipakkam — these are natural sinks with no elevation buffer.
+        <b>Conditionally risky</b> (heavy rain or drain blockage): T Nagar, Kolathur, Perambur, Ennore.
+        <b>Event-driven</b> (reservoir release or cyclone only): Saidapet, Adyar, Mudichur, Tambaram.
+        <b>Cyclone-sensitive</b>: the entire coastal belt from Ennore to Thiruvanmiyur.
+        More resilient: Porur (Porur lake buffer), Ambattur uplands, Poonamallee, western suburbs.
+        Key insight: flood management works better when aligned with watersheds and drainage basins — not administrative zones.
+        Priority interventions: restore Pallikaranai wetland, deepen Buckingham Canal, decongest OMR stormwater drains, coordinate reservoir release timing.
+      </div>
+    </div>`;
+
+  if(SCR.voiceOn){
+    const narr=`Scenario analysis complete.
+      The risk matrix shows ${SCR.results.length} scenarios against ${MATRIX_ZONES.length} Chennai areas.
+      Always flooded regardless of scenario: Velachery, Pallikaranai, Madipakkam — natural basins with no drainage outlet.
+      The worst scenario was ${worst.sc.name}, reaching ${mToFtIn(worst.peak.maxd)} of flooding.
+      T Nagar, Mylapore and Nungambakkam flood from urban drain failure — not river overflow — which is why even moderate rain affects central Chennai.
+      Saidapet, Adyar and Mudichur are event-driven — they flood only when rivers overflow or reservoirs release.
+      Porur, Tambaram uplands and western suburbs show the greatest resilience across all scenarios.
+      Flood management works best when aligned with watersheds and drainage basins, not administrative zones.`;
+    setTimeout(()=>scSpeak(narr),600);
+  }
+}
+
+
+function scSpeak(text){
+  return new Promise(resolve=>{
+    if(!SCR.voiceOn){resolve();return;}
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(expandSpeech(text));u.lang='en-IN';u.rate=1.0;u.volume=1.0;
+    const vs=window.speechSynthesis.getVoices();
+    const v=vs.find(v=>v.lang.startsWith('en')&&(v.name.includes('India')||v.name.includes('Google')))||vs.find(v=>v.lang.startsWith('en'));
+    if(v) u.voice=v;u.onend=resolve;u.onerror=resolve;window.speechSynthesis.speak(u);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GUIDED TOUR
+// ═══════════════════════════════════════════════════════════
+const TSTEPS=[
+  {ico:'🌊',hl:null,text:'Welcome to the Chennai Flood Simulator. This tool models hydrological flood risk across Chennai using real satellite imagery and live OpenStreetMap data. Let us walk through every feature.'},
+  {ico:'🛰️',hl:null,text:'The map shows Esri satellite imagery with road overlays — exactly like Google Maps. You can switch to CartoDB dark map using the button at the top right. Pan and zoom freely at any time.'},
+  {ico:'💧',hl:null,text:'Water body outlines are fetched live from OpenStreetMap — so they match the satellite imagery exactly. Cyan borders mark lakes and reservoirs. Dashed green marks Pallikaranai wetland. Rivers are drawn from OSM waterway data.'},
+  {ico:'📍',hl:null,text:'White labels with cyan dots mark all 15 Chennai State Assembly Constituencies. Gold labels show key suburbs — T Nagar, Adyar, Tambaram, Ambattur and more — so you can always relate the flood zones to real neighbourhoods.'},
+  {ico:'🌧️',hl:'sec-rain',text:'The Rain Intensity slider is your main control. Slide it up to simulate rainfall from dry conditions through light, moderate, heavy and extreme. Flood zone overlays appear on the satellite map as you increase intensity.'},
+  {ico:'🌀',hl:'sec-monsoon',text:'Monsoon pattern sets the seasonal baseline. The Northeast monsoon from October to December causes 60 percent of Chennai rainfall and drives the most damaging floods. The 2015 disaster was an extreme NE monsoon event.'},
+  {ico:'🏞️',hl:'sec-res',text:'Reservoir bars show fill levels for Chembarambakkam, Red Hills, and Poondi. As rain accumulates during the simulation, watch these fill up. REL triggers an emergency release — replicating the 2015 event that flooded south Chennai within hours.'},
+  {ico:'⚡',hl:'sec-special',text:'Special conditions layer extra hazards. Cyclone mode intensifies rainfall. Bay of Bengal storm surge inundates the entire coastline from Ennore to Thiruvanmiyur. Urban drain blockage — Chennai\'s chronic problem — lowers flood thresholds across all zones.'},
+  {ico:'▶️',hl:'sec-ctrl',text:'Press PLAY to run the simulation in real time. Speed multipliers compress hours into seconds. Watch reservoir levels fill, flood zones spread across the satellite map, and statistics update every frame.'},
+  {ico:'📊',hl:'sec-stats',text:'Statistics update live: flood coverage in square kilometres, risk level, population at risk in lakhs, maximum water depth in feet and inches, and river status. All computed from the zone thresholds and current rainfall.'},
+  {ico:'🗺️',hl:'sec-zones',text:'Zone status gives a neighbourhood breakdown — green safe, amber warning, red flooded. Pallikaranai and Besant Nagar flood first at lowest rainfall. Tambaram and Porur are last, being on higher ground.'},
+  {ico:'📊',hl:null,text:'Use Run Scenarios to automatically simulate all 10 flood events, capture peak depths and flooded areas, and generate a narrated vulnerability report concluding with Chennai\'s most and least flood-prone locations.'}
+];
+const TOUR={running:false,step:0};
+function startTour(){if(TOUR.running){stopTour();return;}TOUR.running=true;TOUR.step=0;resetSim();g('tourover').style.display='block';g('tbtn').textContent='✕ STOP TOUR';buildDots();runTStep(0);}
+function stopTour(){TOUR.running=false;window.speechSynthesis.cancel();clearHL();g('tourover').style.display='none';g('tbtn').textContent='🎧 GUIDED TOUR';}
+function tourNext(){window.speechSynthesis.cancel();clearHL();if(TOUR.step<TSTEPS.length-1){TOUR.step++;runTStep(TOUR.step);}else stopTour();}
+function tourPrev(){window.speechSynthesis.cancel();clearHL();if(TOUR.step>0){TOUR.step--;runTStep(TOUR.step);}}
+function runTStep(i){
+  if(!TOUR.running) return;
+  const step=TSTEPS[i];TOUR.step=i;
+  g('tourico').textContent=step.ico;g('tourtxt').textContent='';typeText(step.text,g('tourtxt'));
+  document.querySelectorAll('.tdot').forEach((d,idx)=>{d.className='tdot'+(idx===i?' act':idx<i?' dn':'');});
+  clearHL();if(step.hl){const el=g(step.hl);if(el){el.classList.add('thl');el.scrollIntoView({behavior:'smooth',block:'center'});}}
+  const u=new SpeechSynthesisUtterance(expandSpeech(step.text));u.lang='en-IN';u.rate=.92;u.volume=1.0;
+  const vs=window.speechSynthesis.getVoices();
+  const v=vs.find(v=>v.lang.startsWith('en')&&(v.name.includes('India')||v.name.includes('Rishi')))||vs.find(v=>v.lang.startsWith('en'));
+  if(v) u.voice=v;
+  u.onend=()=>{if(TOUR.running&&TOUR.step===i)setTimeout(()=>{if(TOUR.running&&TOUR.step===i)tourNext();},1000);};
+  u.onerror=()=>{};window.speechSynthesis.speak(u);
+}
+function typeText(text,el){el.textContent='';let i=0;function t(){if(i<text.length){el.textContent+=text[i++];setTimeout(t,18);}}t();}
+function clearHL(){document.querySelectorAll('.thl').forEach(e=>e.classList.remove('thl'));}
+function buildDots(){
+  const c=g('tdots');c.innerHTML='';
+  TSTEPS.forEach((_,i)=>{const d=document.createElement('div');d.className='tdot'+(i===0?' act':'');d.onclick=()=>{window.speechSynthesis.cancel();clearHL();runTStep(i);};c.appendChild(d);});
+}
+window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
+
+// ── SPEECH TEXT EXPANDER ──
+// Expands all abbreviations before speaking so the TTS engine reads naturally
+function expandSpeech(text){
+  const map=[
+    // Monsoon seasons
+    [/\bNE\s+MON(?:SOON)?\b/gi,        'North East Monsoon'],
+    [/\bSW\s+MON(?:SOON)?\b/gi,        'South West Monsoon'],
+    [/\bNE\s+monsoon\b/gi,             'North East monsoon'],
+    [/\bSW\s+monsoon\b/gi,             'South West monsoon'],
+    [/\bNorth\s+East\s+Mon\b/gi,       'North East Monsoon'],
+    [/\bSouth\s+West\s+Mon\b/gi,       'South West Monsoon'],
+    // Scenario card names
+    [/\bNE MONSOON\b/g,                'North East Monsoon'],
+    [/\bSW MONSOON\b/g,                'South West Monsoon'],
+    // Units
+    [/(\d+)\s*mm\/day\b/g,             '$1 millimetres per day'],
+    [/~(\d+)\s*mm\/day\b/g,            'approximately $1 millimetres per day'],
+    [/(\d+(?:\.\d+)?)\s*km²\b/g,       '$1 square kilometres'],
+    [/(\d+(?:\.\d+)?)\s*km\b/g,        '$1 kilometres'],
+    [/(\d+(?:\.\d+)?)\s*L\b(?!\s*at)/g,'$1 lakh'],
+    [/(\d+(?:\.\d+)?)\s*L\s+at\b/g,   '$1 lakh at'],
+    // Depth units (already expanded by mToFtIn but catch any stragglers)
+    [/\bft\b/g,                        'feet'],
+    [/\bin\b/g,                        'inches'],
+    // Organisation / place abbreviations
+    [/\bOSM\b/gi,                      'OpenStreetMap'],
+    [/\bIIT\b/gi,                      'I I T'],
+    [/\bECR\b/gi,                      'East Coast Road'],
+    [/\bOMR\b/gi,                      'Old Mahabalipuram Road'],
+    [/\bGST\b/gi,                      'G S T Road'],
+    [/\bNH-44\b/gi,                    'National Highway 44'],
+    [/\bNH-45\b/gi,                    'National Highway 45'],
+    [/\bNH-16\b/gi,                    'National Highway 16'],
+    // Risk / status labels
+    [/\bCATASTROPHIC\b/g,              'catastrophic'],
+    [/\bSEVERE\b/g,                    'severe'],
+    [/\bMODERATE\b/g,                  'moderate'],
+    [/\bFLOODING\b/g,                  'flooding'],
+    [/\bELEVATED\b/g,                  'elevated'],
+    [/\bDANGER\b/g,                    'danger'],
+    [/\bNORMAL\b/g,                    'normal'],
+    // Specific scenario / event references
+    [/\bDec\s+2015\b/gi,               'December 2015'],
+    [/\bNov\s+2021\b/gi,               'November 2021'],
+    [/\bREL\b/g,                       'release'],
+    [/\bHH:MM\b/gi,                    'hours and minutes'],
+    // Constituency / area abbreviations
+    [/\bDr\.\s*/g,                     'Doctor '],
+    [/\bThiru\s+Vi\s+Ka\s+Nagar\b/gi,  'Thiru Vi Ka Nagar'],
+    // General cleanup
+    [/\b([A-Z]{2,})\b/g, (m)=>{
+      // Expand unknown all-caps words by spelling them out letter by letter
+      // Only if 2-4 letters and not already a known word
+      const known=['NONE','LOW','HIGH','ALL','BAY','OLD','NEW'];
+      if(known.includes(m)) return m.toLowerCase();
+      if(m.length<=4) return m.split('').join(' ');
+      return m;
+    }]
+  ];
+  let out=text;
+  map.forEach(([pat,rep])=>{ out=out.replace(pat,rep); });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  🧠 CHENNAI FLOOD DECISION TOOL ENGINE
+//  4 inputs → flood impact map + sequence + policy insight
+// ═══════════════════════════════════════════════════════════
+
+// Current decision state
+const DT = { R:'R1', D:'D1', W:'W0', C:'C0' };
+
+// ── INPUT DEFINITIONS ──
+const DT_INPUTS = [
+  {
+    key:'R', label:'1. Rainfall Intensity', icon:'🌧️',
+    options:[
+      {val:'R1', label:'R1 — Moderate',  sub:'5–10 cm/day', ri:1.5},
+      {val:'R2', label:'R2 — Heavy',     sub:'10–20 cm/day', ri:2.8},
+      {val:'R3', label:'R3 — Extreme',   sub:'> 20 cm/day', ri:4.0}
+    ]
+  },
+  {
+    key:'D', label:'2. Rainfall Duration', icon:'⏱️',
+    options:[
+      {val:'D1', label:'D1 — 1 Day',       sub:'Single event',       resFill:0},
+      {val:'D2', label:'D2 — 2–3 Days',    sub:'Short sustained',    resFill:0.18},
+      {val:'D3', label:'D3 — Multi-day',   sub:'4+ days / prolonged',resFill:0.38}
+    ]
+  },
+  {
+    key:'W', label:'3. Reservoir Release', icon:'🏞️',
+    options:[
+      {val:'W0', label:'W0 — No Release',   sub:'Normal operation',        chem:false, rh:false},
+      {val:'W1', label:'W1 — Controlled',   sub:'Gradual, managed release', chem:true,  rh:false},
+      {val:'W2', label:'W2 — Sudden Large', sub:'Emergency / uncontrolled', chem:true,  rh:true}
+    ]
+  },
+  {
+    key:'C', label:'4. Tidal / Cyclone', icon:'🌀',
+    options:[
+      {val:'C0', label:'C0 — Normal',     sub:'No special condition',cyclone:false,surge:false},
+      {val:'C1', label:'C1 — High Tide',  sub:'Spring tide / surge', cyclone:false,surge:true},
+      {val:'C2', label:'C2 — Cyclone',    sub:'Cyclone + storm surge',cyclone:true, surge:true}
+    ]
+  }
+];
+
+// ── DECISION CASES ──
+const DT_CASES = [
+  {
+    id:'case1',
+    match: (R,D,W,C) => R==='R1' && W==='W0' && C==='C0',
+    name: 'Typical Rainy Day',
+    emoji: '🟡',
+    color: 'rgba(255,200,0,.15)',
+    borderColor: 'rgba(255,200,0,.5)',
+    tagline: 'Urban waterlogging only — roads flooded, homes safe.',
+    impact: 'Drainage networks in dense areas exceed capacity. No significant river or reservoir involvement. Clears within 2–4 hours of rain stopping.',
+    zones:[
+      {name:'T Nagar / Teynampet',      risk:'🟡', reason:'Stormwater drain overload'},
+      {name:'Nungambakkam / Egmore',    risk:'🟡', reason:'Flat terrain, dense construction'},
+      {name:'Mylapore / Triplicane',    risk:'🟡', reason:'Old drainage network'},
+      {name:'Anna Nagar (pockets)',     risk:'🟡', reason:'Localised clogging'},
+      {name:'Pallikaranai / Velachery', risk:'🟡', reason:'Low-lying, stagnates early'},
+    ],
+    sequence:[
+      {t:'0–1 hr',  icon:'🟡', desc:'Urban drains overflow — roads waterlogged in T Nagar, Mylapore, Nungambakkam'},
+      {t:'1–3 hrs', icon:'🟡', desc:'Pallikaranai and Velachery begin accumulating water'},
+      {t:'3–6 hrs', icon:'🟢', desc:'Rain eases — drainage recovers, most areas clear'}
+    ],
+    policyNote:'Even "posh" areas flood here — the trigger is entirely infrastructure, not geography. Investing in stormwater drain capacity in T Nagar and Mylapore has the highest ROI.',
+    realEstateNote:'Safe to buy in most of Chennai except Velachery and Pallikaranai fringe.',
+    storyNote:'"Every October, T Nagar becomes a lake — not because of any river, but because the drains simply cannot keep up."'
+  },
+  {
+    id:'case2',
+    match: (R,D,W,C) => R==='R2' && W==='W0' && C==='C0',
+    name: 'Heavy Monsoon Spell',
+    emoji: '🔴',
+    color: 'rgba(255,80,50,.12)',
+    borderColor: 'rgba(255,80,50,.5)',
+    tagline: 'Widespread waterlogging and localised flooding in low-lying zones.',
+    impact: 'Basin areas fill up. Rivers rise but stay within banks. Duration matters — 2+ days causes significantly more damage than a single burst.',
+    zones:[
+      {name:'Velachery',              risk:'⚫', reason:'Basin fills up — no outlet'},
+      {name:'Madipakkam / Perungudi', risk:'⚫', reason:'Marsh fringe — stagnates'},
+      {name:'Pallikaranai',           risk:'🔴', reason:'Wetland accumulation'},
+      {name:'Sholinganallur (OMR)',    risk:'🔴', reason:'Low OMR stretch'},
+      {name:'Saidapet / Guindy',      risk:'🔴', reason:'Adyar rises, banks stressed'},
+      {name:'Jafferkhanpet',          risk:'🔴', reason:'Canal backflow'},
+      {name:'T Nagar / Teynampet',    risk:'🔴', reason:'Drain capacity exceeded'},
+      {name:'Porur',                  risk:'🟡', reason:'Porur lake fills, manages'},
+      {name:'Ambattur / Korattur',    risk:'🟡', reason:'Localised, clears slowly'}
+    ],
+    sequence:[
+      {t:'0–2 hrs',  icon:'🟡', desc:'Urban drains overflow across central Chennai'},
+      {t:'2–5 hrs',  icon:'🔴', desc:'Velachery and Madipakkam begin flooding — water enters ground floors'},
+      {t:'5–10 hrs', icon:'🔴', desc:'Pallikaranai fills, Saidapet sees Adyar stress'},
+      {t:'10–18 hrs',icon:'⚫', desc:'Velachery inundated — evacuation needed for ground-floor residents'},
+      {t:'After rain',icon:'🟡',desc:'Slow drainage — areas stay waterlogged 1–3 days'}
+    ],
+    policyNote:'This is the most common annual flood event. 306+ officially mapped flood-prone areas are all activated. Priority: deepen Buckingham Canal to accelerate drainage from Velachery.',
+    realEstateNote:'High risk: Velachery, Madipakkam, Pallikaranai. Moderate: T Nagar, Saidapet. Check floor elevation before buying.',
+    storyNote:'"The Velachery bowl fills like a bathtub with no plug. It just waits for the rain to stop."'
+  },
+  {
+    id:'case3',
+    match: (R,D,W,C) => (R==='R2'||R==='R3') && (D==='D2'||D==='D3') && W==='W1' && C==='C0',
+    name: 'Sustained Rain + Controlled Release',
+    emoji: '🔴',
+    color: 'rgba(255,100,20,.14)',
+    borderColor: 'rgba(255,120,30,.55)',
+    tagline: 'Serious flooding begins. Water enters homes in vulnerable areas.',
+    impact: 'Multi-day rain fills reservoirs. A controlled Chembarambakkam release adds sustained flow to the Adyar system. The combination is more dangerous than either trigger alone.',
+    zones:[
+      {name:'Velachery',              risk:'⚫', reason:'Complete basin flooding'},
+      {name:'Pallikaranai belt',       risk:'⚫', reason:'Wetland overflow'},
+      {name:'Saidapet / Kotturpuram', risk:'🔴', reason:'Adyar rising fast'},
+      {name:'Adyar / Jafferkhanpet',  risk:'🔴', reason:'Downstream of release'},
+      {name:'Manapakkam',             risk:'🔴', reason:'Adyar tributary zone'},
+      {name:'Porur',                  risk:'🔴', reason:'Lake spills over'},
+      {name:'Guindy',                 risk:'🔴', reason:'River+drain overload'},
+      {name:'T Nagar',                risk:'🔴', reason:'Stagnation worsens'},
+      {name:'Perambur / Vyasarpadi',  risk:'🟡', reason:'Slow accumulation'}
+    ],
+    sequence:[
+      {t:'Day 1',    icon:'🔴', desc:'Heavy rain — basins fill, Velachery and Pallikaranai at high risk'},
+      {t:'Day 2',    icon:'🔴', desc:'Controlled release begins — Adyar level rises downstream of Chembarambakkam'},
+      {t:'Day 2-3',  icon:'⚫', desc:'Adyar banks breached at Saidapet, Kotturpuram — homes at risk'},
+      {t:'Day 3+',   icon:'⚫', desc:'Velachery fully inundated, Manapakkam and Porur flooding — evacuation required'}
+    ],
+    policyNote:'A controlled release is still dangerous if timed with peak rainfall. The 2021 floods followed this pattern. Releasing water at night during peak rain is a critical protocol failure.',
+    realEstateNote:'Extreme caution: Adyar, Saidapet, Kotturpuram, Manapakkam, Velachery. These areas saw home-level flooding.',
+    storyNote:'"The release was controlled — but nobody told the rain to stop."'
+  },
+  {
+    id:'case4',
+    match: (R,D,W,C) => R==='R3' && W==='W2' && C!=='C2',
+    name: '2015-Type Inland Flood',
+    emoji: '⚫',
+    color: 'rgba(180,0,180,.12)',
+    borderColor: 'rgba(200,30,200,.5)',
+    tagline: 'System failure mode — geography dominates everything.',
+    impact: 'Extreme rainfall + sudden large reservoir release = the December 2015 scenario. The Adyar river system becomes a torrent. Areas flood in sequence like dominos.',
+    zones:[
+      {name:'Mudichur / Vandalur',    risk:'⚫⚫', reason:'Directly downstream of release — first hit'},
+      {name:'Manapakkam',             risk:'⚫⚫', reason:'Adyar surge within hours'},
+      {name:'Saidapet',               risk:'⚫⚫', reason:'River overflow — entire area submerged'},
+      {name:'Adyar / Kotturpuram',    risk:'⚫⚫', reason:'Direct river impact'},
+      {name:'Velachery',              risk:'⚫⚫', reason:'Basin + backflow — complete flooding'},
+      {name:'Pallikaranai belt',       risk:'⚫',   reason:'Water accumulation zone'},
+      {name:'Guindy / Alandur',       risk:'⚫',   reason:'River breaches roads'},
+      {name:'T Nagar',                risk:'⚫',   reason:'City-wide stagnation'},
+      {name:'Jafferkhanpet',          risk:'⚫',   reason:'Canal overflow + river surge'},
+      {name:'Tambaram / Chrompet',    risk:'⚫',   reason:'Reservoir belt — severely affected'}
+    ],
+    sequence:[
+      {t:'0–3 hrs',  icon:'⚫', desc:'Mudichur and Manapakkam flood first — Chembarambakkam discharge hits'},
+      {t:'3–6 hrs',  icon:'⚫', desc:'Saidapet submerged — Adyar at record levels'},
+      {t:'6–12 hrs', icon:'⚫', desc:'Adyar and Kotturpuram — boats needed for rescue'},
+      {t:'12–24 hrs',icon:'⚫', desc:'Velachery complete — T Nagar stagnates — city-wide emergency'},
+      {t:'Day 2+',   icon:'⚫', desc:'Pumping and relief operations — takes 5–10 days to clear fully'}
+    ],
+    policyNote:'This is a system failure — no single intervention stops it. Real fix: coordinated reservoir protocol (never release during peak rain), restored Pallikaranai wetland as buffer, and early warning system with 48-hour lead time.',
+    realEstateNote:'DO NOT buy ground floor anywhere in the Adyar corridor, Velachery, or Saidapet. This scenario is not rare — it has happened multiple times since 2005.',
+    storyNote:'"On December 1st, 2015, 29,000 cusecs were released from Chembarambakkam. By evening, Adyar had swallowed entire neighbourhoods."'
+  },
+  {
+    id:'case5',
+    match: (R,D,W,C) => C==='C2',
+    name: 'Cyclone Scenario',
+    emoji: '⚫',
+    color: 'rgba(255,34,68,.12)',
+    borderColor: 'rgba(255,34,68,.5)',
+    tagline: 'Dual flooding — rain from above, sea from below. Cannot drain.',
+    impact: 'Cyclone combines heavy rain, storm surge from the Bay of Bengal, and high tide. Water cannot drain to the sea because the sea itself is flooding the city. Most dangerous combination.',
+    zones:[
+      {name:'Ennore',                 risk:'⚫⚫', reason:'Sea surge — industrial zone submerged first'},
+      {name:'Tiruvottiyur',           risk:'⚫⚫', reason:'Low coastal elevation'},
+      {name:'Besant Nagar / Thiruvanmiyur', risk:'⚫', reason:'Sea + backflow'},
+      {name:'Royapuram / Harbour',    risk:'⚫',   reason:'Port area — coastal surge'},
+      {name:'Velachery',              risk:'⚫⚫', reason:'No drainage outlet — water trapped'},
+      {name:'Pallikaranai',           risk:'⚫⚫', reason:'Water sink — fills completely'},
+      {name:'Saidapet',               risk:'⚫',   reason:'River swelling + rain'},
+      {name:'Mudichur',               risk:'⚫',   reason:'Reservoir impact zone'}
+    ],
+    sequence:[
+      {t:'Landfall',  icon:'⚫', desc:'Ennore and Tiruvottiyur flood first — storm surge from Bay of Bengal'},
+      {t:'0–3 hrs',   icon:'⚫', desc:'Coastal strip from Ennore to Thiruvanmiyur under surge water'},
+      {t:'3–8 hrs',   icon:'⚫', desc:'Rivers cannot drain to sea — back up inland, Saidapet and Adyar overflow'},
+      {t:'8–16 hrs',  icon:'⚫', desc:'Velachery and Pallikaranai completely inundated — no outlet at all'},
+      {t:'Day 2+',    icon:'⚫', desc:'Even after cyclone passes, water trapped until surge recedes — 5–15 days'}
+    ],
+    policyNote:'Cyclones require coastal evacuation 48 hours in advance. The tidal resistance is the critical factor — no pump in the world can drain Chennai faster than the Bay of Bengal prevents it.',
+    realEstateNote:'Entire coastal strip (within 3km of shore) is extreme risk. Ennore, Tiruvottiyur, Besant Nagar, Thiruvanmiyur — catastrophic in this scenario.',
+    storyNote:'"The rain falls. But the sea has closed the exit. Chennai becomes a bowl with no drain."'
+  },
+  {
+    id:'case_tide',
+    match: (R,D,W,C) => C==='C1',
+    name: 'Heavy Rain + High Tide',
+    emoji: '🔴',
+    color: 'rgba(90,184,232,.12)',
+    borderColor: 'rgba(90,184,232,.5)',
+    tagline: 'Coastal backflow blocks drainage — flooding lasts longer than expected.',
+    impact: 'High tide prevents rivers and canals from discharging into the Bay of Bengal. Even moderate rain stays flooded for hours longer. Particularly dangerous for the Buckingham Canal zone.',
+    zones:[
+      {name:'Thiruvanmiyur / Besant Nagar',risk:'🔴', reason:'Sea proximity + tidal backflow'},
+      {name:'Ennore / Tiruvottiyur',       risk:'🔴', reason:'Tidal creek backup'},
+      {name:'Cooum Banks',                 risk:'🔴', reason:'Estuary blocked by tide'},
+      {name:'Adyar estuary area',          risk:'🔴', reason:'River cannot drain into sea'},
+      {name:'Velachery',                   risk:'🔴', reason:'Downstream drainage blocked'},
+    ],
+    sequence:[
+      {t:'High tide',icon:'🟡', desc:'Buckingham Canal and river estuaries blocked'},
+      {t:'+1–3 hrs', icon:'🔴', desc:'Coastal and low-lying areas flood faster than rain alone'},
+      {t:'+3–6 hrs', icon:'🔴', desc:'Flooding persists — drainage impossible until tide recedes'},
+      {t:'Low tide',  icon:'🟡', desc:'Gradual drainage begins — 2-4 hours to clear'}
+    ],
+    policyNote:'High tide timing is predictable months in advance. A simple early-warning protocol — alerting residents 6 hours before rain + high tide coincides — could significantly reduce impact.',
+    realEstateNote:'Coastal strip within 1km of shore: check historic high-tide flood maps before purchasing.',
+    storyNote:'"The rain was only moderate. But the tide held the water in. The city could not breathe."'
+  }
+];
+
+// Fallback case
+const DT_DEFAULT = {
+  id:'case_default',
+  match:()=>true,
+  name:'Mixed Conditions',
+  emoji:'🟡',
+  color:'rgba(255,200,0,.1)',
+  borderColor:'rgba(255,200,0,.4)',
+  tagline:'Multiple factors combining — assess each individually.',
+  impact:'Your selected combination has mixed triggers. Refer to the individual factors below.',
+  zones:[
+    {name:'Velachery / Pallikaranai',risk:'🔴',reason:'Always first to flood in any significant rain'},
+    {name:'Adyar corridor',          risk:'🔴',reason:'Rises with any reservoir activity'}
+  ],
+  sequence:[
+    {t:'First',icon:'🔴',desc:'Low-lying basins fill — Velachery, Pallikaranai, Madipakkam'},
+    {t:'Next', icon:'🔴',desc:'Rivers swell — Saidapet, Adyar, Cooum banks affected'},
+    {t:'Then', icon:'⚫',desc:'If reservoir releases or cyclone — system-wide flooding'}
+  ],
+  policyNote:'Combine triggers carefully — Chennai flooding is usually multi-factor.',
+  realEstateNote:'Check the risk matrix for your specific area.',
+  storyNote:'"Chennai flooding is never one thing. It is always a combination."'
+};
+
+function getCase(){
+  const {R,D,W,C}=DT;
+  return DT_CASES.find(c=>c.match(R,D,W,C))||DT_DEFAULT;
+}
+
+function renderDTInputs(){
+  g('dt-inputs').innerHTML=DT_INPUTS.map(inp=>`
+    <div style="margin-bottom:14px">
+      <div style="font-size:8px;color:var(--dim);letter-spacing:2px;margin-bottom:7px;font-family:'Space Grotesk',sans-serif">
+        ${inp.icon} ${inp.label}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${inp.options.map(opt=>`
+          <div onclick="setDT('${inp.key}','${opt.val}')"
+            style="padding:7px 10px;border:1px solid ${DT[inp.key]===opt.val?'var(--g)':'var(--bdr)'};
+              background:${DT[inp.key]===opt.val?'rgba(0,255,136,.08)':'transparent'};
+              border-radius:2px;cursor:pointer;transition:all .2s;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:9px;font-weight:bold;color:${DT[inp.key]===opt.val?'#00ff88':'var(--txt)'}">${opt.label}</div>
+              <div style="font-size:7.5px;color:var(--dim);margin-top:1px">${opt.sub}</div>
+            </div>
+            ${DT[inp.key]===opt.val?'<div style="width:6px;height:6px;border-radius:50%;background:#00ff88;box-shadow:0 0 5px #00ff88"></div>':''}
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderDTOutput(){
+  const cas=getCase();
+  const riskOrder=['🟢','🟡','🔴','⚫','⚫⚫'];
+
+  const zonesHTML=cas.zones.map(z=>`
+    <div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0;
+      border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="font-size:14px;flex-shrink:0;margin-top:1px">${z.risk}</span>
+      <div>
+        <div style="font-size:8.5px;font-weight:bold;color:var(--txt)">${z.name}</div>
+        <div style="font-size:7.5px;color:var(--dim)">${z.reason}</div>
+      </div>
+    </div>`).join('');
+
+  const seqHTML=cas.sequence.map((s,i)=>`
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;
+      border-bottom:1px solid rgba(255,255,255,.04)">
+      <div style="flex-shrink:0;text-align:right;width:70px;font-size:8px;
+        color:var(--a);padding-top:1px;letter-spacing:.5px">${s.t}</div>
+      <div style="font-size:13px;flex-shrink:0">${s.icon}</div>
+      <div style="font-size:8.5px;color:#cce;line-height:1.55">${s.desc}</div>
+    </div>`).join('');
+
+  g('dt-output').innerHTML=`
+    <!-- Case header -->
+    <div style="padding:12px 14px;background:${cas.color};border:1px solid ${cas.borderColor};
+      border-radius:3px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:22px">${cas.emoji}</span>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:bold;
+            color:var(--txt);letter-spacing:1.5px">${cas.name}</div>
+          <div style="font-size:8.5px;color:#bbd;margin-top:3px">${cas.tagline}</div>
+        </div>
+      </div>
+      <div style="font-size:8px;color:#aac;line-height:1.65">${cas.impact}</div>
+    </div>
+
+    <!-- Affected areas -->
+    <div style="margin-bottom:14px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:8px;color:var(--a);
+        letter-spacing:2px;margin-bottom:8px">⚠ AREAS FLOODED — IN ORDER OF IMPACT</div>
+      ${zonesHTML}
+    </div>
+
+    <!-- Flood sequence -->
+    <div style="margin-bottom:14px;padding:10px 12px;background:rgba(0,0,0,.2);border-radius:3px;border:1px solid rgba(255,255,255,.06)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:8px;color:var(--a);
+        letter-spacing:2px;margin-bottom:8px">🕐 FLOOD SEQUENCE TIMELINE</div>
+      ${seqHTML}
+    </div>
+
+    <!-- Three columns: policy / realty / story -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:10px">
+      <div style="padding:9px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:2px">
+        <div style="font-size:7.5px;color:var(--a);letter-spacing:1.5px;margin-bottom:5px;font-weight:bold">🏛 POLICY</div>
+        <div style="font-size:7.5px;color:#bbd;line-height:1.6">${cas.policyNote}</div>
+      </div>
+      <div style="padding:9px;background:rgba(255,170,0,.05);border:1px solid rgba(255,170,0,.15);border-radius:2px">
+        <div style="font-size:7.5px;color:var(--w);letter-spacing:1.5px;margin-bottom:5px;font-weight:bold">🏠 REAL ESTATE</div>
+        <div style="font-size:7.5px;color:#bbd;line-height:1.6">${cas.realEstateNote}</div>
+      </div>
+      <div style="padding:9px;background:rgba(180,100,255,.05);border:1px solid rgba(180,100,255,.15);border-radius:2px">
+        <div style="font-size:7.5px;color:#c090ff;letter-spacing:1.5px;margin-bottom:5px;font-weight:bold">📖 STORY</div>
+        <div style="font-size:7.5px;color:#bbd;line-height:1.6;font-style:italic">${cas.storyNote}</div>
+      </div>
+    </div>`;
+
+  // Quick cheat line
+  const cheatLines={
+    'case1':'Expect waterlogging in T Nagar and Mylapore. Roads flood, homes safe.',
+    'case2':'🔴 Velachery and Pallikaranai flood. Avoid low-lying areas.',
+    'case3':'⚫ Adyar corridor in danger. Saidapet, Kotturpuram — evacuate ground floors.',
+    'case4':'⚫⚫ SYSTEM FAILURE. Mudichur to Velachery — city-wide emergency. 2015 repeat.',
+    'case5':'⚫⚫ CYCLONE. Coast + entire city. Cannot drain. Maximum alert.',
+    'case_tide':'🔴 Coastal areas + estuaries. Flooding persists until tide recedes.',
+    'case_default':'Assess individually. Low-lying areas flood first in any combination.'
+  };
+  g('dt-mental').innerHTML=`<b>Quick take:</b> ${cheatLines[cas.id]||cheatLines.case_default}`;
+}
+
+function setDT(key,val){
+  DT[key]=val;
+  renderDTInputs();
+  renderDTOutput();
+}
+
+function applyToSimulator(){
+  // Map decision inputs → simulator state
+  const rOpt=DT_INPUTS[0].options.find(o=>o.val===DT.R);
+  const dOpt=DT_INPUTS[1].options.find(o=>o.val===DT.D);
+  const wOpt=DT_INPUTS[2].options.find(o=>o.val===DT.W);
+  const cOpt=DT_INPUTS[3].options.find(o=>o.val===DT.C);
+
+  S.ri=rOpt.ri;
+  S.cyclone=cOpt.cyclone;
+  S.surge=cOpt.surge;
+  S.res.chem=wOpt.chem;
+  S.res.rh=wOpt.rh;
+  // Apply duration effect to reservoir levels
+  S.lvl.chem=Math.min(0.99, 0.62+dOpt.resFill+(wOpt.chem?0.35:0));
+  S.lvl.rh  =Math.min(0.99, 0.72+dOpt.resFill+(wOpt.rh?0.25:0));
+  S.lvl.poondi=Math.min(0.90, 0.45+dOpt.resFill*0.7);
+
+  // Sync UI sliders and toggles
+  g('rslider').value=Math.round(S.ri*10);
+  updateRainLabel();
+  updateResBars();
+  ['cyclo-sw','surge-sw','drain-sw'].forEach(id=>g(id).classList.remove('on'));
+  if(S.cyclone) g('cyclo-sw').classList.add('on');
+  if(S.surge)   g('surge-sw').classList.add('on');
+  ['chem','rh','poondi'].forEach(id=>g(id+'btn').classList.toggle('on',S.res[id]));
+
+  closeDecisionTool();
+  // Brief flash to show it applied
+  const btn=g('dtbtn');
+  btn.style.background='rgba(0,255,136,.25)';
+  setTimeout(()=>{btn.style.background='';},800);
+}
+
+function openDecisionTool(){
+  g('dtscrim').style.display='block';
+  g('dtmodal').style.display='flex';
+  renderDTInputs();
+  renderDTOutput();
+}
+
+function closeDecisionTool(){
+  g('dtscrim').style.display='none';
+  g('dtmodal').style.display='none';
+}
+
+
+// ── SINGLE SCENARIO RUN ──
+async function runSingleScenario(scId){
+  if(SCR.running) return;
+  const sc=SCENARIOS.find(s=>s.id===scId);
+  if(!sc) return;
+  const idx=SCENARIOS.indexOf(sc);
+  SCR.running=true; SCR.alreadySaid=new Set();
+  g('prwrap').style.display='block';
+  g('prlab').textContent=`RUNNING: ${sc.name}`;
+  g('prfill').style.width='0%';
+  g('prlive').textContent='Initialising…';
+  showSimAnim(true);
+  await runScenario(sc,idx);
+  SCR.running=false;
+  g('scrunbtn').disabled=false;
+  g('prfill').style.width='100%';
+  g('prlab').textContent=`✓ COMPLETE: ${sc.name}`;
+  g('prlive').textContent='';
+  showSimAnim(false);
+  resetSim();
+}
+
+// ── SIMULATION RUNNING ANIMATION ──
+function showSimAnim(on){
+  let el=document.getElementById('simanim');
+  if(on){
+    if(!el){
+      el=document.createElement('div');
+      el.id='simanim';
+      el.innerHTML=`
+        <div id="sa-inner">
+          <div id="sa-rings">
+            <div class="sa-ring r1"></div>
+            <div class="sa-ring r2"></div>
+            <div class="sa-ring r3"></div>
+          </div>
+          <div id="sa-icon">🌊</div>
+          <div id="sa-label">SIMULATION RUNNING</div>
+          <div id="sa-sub">Map updating in real-time…</div>
+          <div id="sa-bar"><div id="sa-bar-fill"></div></div>
+          <div id="sa-dots">
+            <span class="sad">●</span><span class="sad">●</span>
+            <span class="sad">●</span><span class="sad">●</span><span class="sad">●</span>
+          </div>
+        </div>`;
+      document.getElementById('mapwrap').appendChild(el);
+      // Animate progress bar during run
+      let p=0;
+      el._timer=setInterval(()=>{
+        p=Math.min(95,p+Math.random()*3);
+        const bf=document.getElementById('sa-bar-fill');
+        if(bf) bf.style.width=p+'%';
+      },400);
+    }
+    el.style.display='flex';
+  } else {
+    if(el){
+      clearInterval(el._timer);
+      el.style.display='none';
+    }
+  }
+}
+
+// ── BOOT ──
+updateRainLabel(); updateResBars();
+</script>
 </body>
 </html>
