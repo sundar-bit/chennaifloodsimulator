@@ -1460,76 +1460,76 @@ function scSpeak(text){
 //  GUIDED TOUR
 // ═══════════════════════════════════════════════════════════
 const TSTEPS=[
-  // 0 — Welcome: reset everything, zoom to full Chennai
-  {ico:'🌊',hl:null,text:'Welcome to the Chennai Flood Simulator — a real-time hydrological decision intelligence tool. It models flood risk across Chennai using Esri satellite imagery, live OpenStreetMap data, and validated against NDMA, IMD, and Climate Central sources. Let us walk through every feature.',
+  // 0 — Welcome
+  {ico:'🌊',hl:null,text:'Welcome to the Chennai Flood Simulator — a real-time hydrological decision intelligence tool built on Esri satellite imagery and OpenStreetMap data. Validated against NDMA, IMD and Climate Central sources.',
    act:function(){resetSim();map.flyTo([13.06,80.18],11,{duration:1.5});}},
 
-  // 1 — Satellite map: toggle to dark then back to satellite
-  {ico:'🛰️',hl:null,text:'The map shows Esri satellite imagery with road overlays — exactly like Google Maps. Watch as we switch to CartoDB dark map and back. You can toggle this any time using the button at the top right.',
-   act:function(){map.flyTo([13.06,80.22],12,{duration:1.2});setTimeout(()=>{if(S.satellite)toggleView();},2500);setTimeout(()=>{if(!S.satellite)toggleView();},5500);}},
+  // 1 — Satellite & dark map toggle
+  {ico:'🛰️',hl:null,text:'The map uses Esri satellite imagery with roads. Watch — switching to dark map now, then back to satellite.',
+   act:function(){map.flyTo([13.06,80.22],12,{duration:1.2});setTimeout(()=>{if(S.satellite)toggleView();},2000);setTimeout(()=>{if(!S.satellite)toggleView();},4500);}},
 
-  // 2 — Water bodies: zoom to Adyar river area
-  {ico:'💧',hl:null,text:'Water body outlines are fetched live from OpenStreetMap. Cyan borders mark lakes and reservoirs. Dashed green marks Pallikaranai wetland. Let us zoom into the Adyar river area to see the waterway detail.',
+  // 2 — Water bodies
+  {ico:'💧',hl:null,text:'Water bodies from OpenStreetMap — cyan for lakes and reservoirs, dashed green for Pallikaranai wetland. Zooming to the Adyar river now.',
    act:function(){map.flyTo([13.006,80.235],13,{duration:1.5});}},
 
-  // 3 — Constituencies: zoom to see labels
-  {ico:'📍',hl:null,text:'White labels with cyan dots mark all 15 Chennai State Assembly Constituencies. Gold labels show key suburbs — T Nagar, Adyar, Tambaram, Ambattur and more — so you can always relate the flood zones to real neighbourhoods.',
+  // 3 — Constituencies & suburbs
+  {ico:'📍',hl:null,text:'15 Assembly Constituencies marked in white. Gold labels for key suburbs — T Nagar, Adyar, Tambaram, Ambattur — so flood zones map to real neighbourhoods.',
    act:function(){map.flyTo([13.06,80.24],12,{duration:1.5});}},
 
-  // 4 — 6-belt framework: zoom to Pallikaranai marsh belt
-  {ico:'🏘️',hl:null,text:'Chennai is modelled as 6 vulnerability belts. Watch as we zoom to the OMR marshland belt — it floods earliest due to historically reclaimed wetlands. The Adyar tributary belt, north coastal belt, central urban belt, western elevated belt, and south suburban belt each have distinct flood thresholds.',
+  // 4 — 6-belt framework
+  {ico:'🏘️',hl:null,text:'Chennai is modelled as 6 vulnerability belts. Zooming to the OMR marshland belt — it floods earliest. Each belt has distinct thresholds based on terrain and drainage.',
    act:function(){map.flyTo([12.945,80.22],13,{duration:1.5});}},
 
-  // 5 — Rain slider demo: animate from dry to heavy
-  {ico:'🌧️',hl:'sec-rain',text:'The Rain Intensity slider is your main control. Watch as we increase it from dry to heavy rain. Flood zone overlays appear on the satellite map in real time. Depth is shown in feet and inches.',
+  // 5 — Rain slider
+  {ico:'🌧️',hl:'sec-rain',text:'Rain Intensity — the main control. Watch the slider move from dry to heavy. Flood zones appear on the map as intensity rises.',
    act:function(){map.flyTo([13.04,80.22],11,{duration:1.2});animateSlider(0,30,3000);}},
 
-  // 6 — Monsoon: switch NE → SW → NE
-  {ico:'🌀',hl:'sec-monsoon',text:'Monsoon pattern sets the seasonal baseline. Watch the panel as we switch from Northeast to Southwest monsoon and back. The NE monsoon from October to December causes 60 percent of Chennai rainfall and drives the most damaging floods.',
-   act:function(){setSeason('ne');setTimeout(()=>setSeason('sw'),2500);setTimeout(()=>setSeason('ne'),5000);}},
+  // 6 — Monsoon toggle
+  {ico:'🌀',hl:'sec-monsoon',text:'Monsoon pattern — switching from Northeast to Southwest and back. The NE monsoon drives 60 percent of Chennai rainfall.',
+   act:function(){setSeason('ne');setTimeout(()=>setSeason('sw'),2000);setTimeout(()=>setSeason('ne'),4000);}},
 
-  // 7 — Reservoirs: fill up and trigger release
-  {ico:'🏞️',hl:'sec-res',text:'Reservoir bars show Chembarambakkam, Red Hills, and Poondi fill levels. Watch as rainfall fills them up. When Chembarambakkam hits capacity, an emergency release triggers automatically — replicating the 2015 event that flooded south Chennai.',
-   act:function(){animateSlider(30,38,1500);S.lvl.chem=.92;S.lvl.rh=.88;updateResBars();setTimeout(()=>{S.lvl.chem=.99;updateResBars();if(!S.res.chem){toggleRes('chem');showAlert('⚠ Chembarambakkam at capacity — AUTO RELEASE','d');}},3500);map.flyTo([13.02,80.17],12,{duration:1.2});}},
+  // 7 — Reservoirs
+  {ico:'🏞️',hl:'sec-res',text:'Reservoir levels filling up. Chembarambakkam approaching capacity — watch for the automatic emergency release, just like December 2015.',
+   act:function(){animateSlider(30,38,1500);S.lvl.chem=.92;S.lvl.rh=.88;updateResBars();setTimeout(()=>{S.lvl.chem=.99;updateResBars();if(!S.res.chem){toggleRes('chem');showAlert('⚠ Chembarambakkam at capacity — AUTO RELEASE','d');}},3000);map.flyTo([13.02,80.17],12,{duration:1.2});}},
 
-  // 8 — Special conditions: toggle cyclone, surge, drain
-  {ico:'⚡',hl:'sec-special',text:'Special conditions layer extra hazards. Watch as we activate cyclone mode — it intensifies rainfall. Then Bay of Bengal storm surge floods the coastline. Finally urban drain blockage lowers thresholds everywhere.',
-   act:function(){if(!S.cyclone)toggleMode('cyclone');map.flyTo([13.06,80.28],12,{duration:1.2});setTimeout(()=>{if(!S.surge)toggleMode('surge');map.flyTo([13.10,80.30],12,{duration:1.2});},3500);setTimeout(()=>{if(!S.drain)toggleMode('drain');},6500);}},
+  // 8 — Special conditions
+  {ico:'⚡',hl:'sec-special',text:'Activating special conditions — cyclone mode first, then storm surge on the coastline, then urban drain blockage.',
+   act:function(){if(!S.cyclone)toggleMode('cyclone');map.flyTo([13.06,80.28],12,{duration:1.2});setTimeout(()=>{if(!S.surge)toggleMode('surge');map.flyTo([13.10,80.30],12,{duration:1.2});},3000);setTimeout(()=>{if(!S.drain)toggleMode('drain');},5500);}},
 
-  // 9 — Play simulation: hit play at 5x speed, watch flood spread
-  {ico:'▶️',hl:'sec-ctrl',text:'Now let us run the simulation live. We will set speed to 5x and press PLAY. Watch reservoir levels rise, flood zones spread across the map in real time, and statistics update every frame.',
-   act:function(){map.flyTo([13.04,80.22],11,{duration:1});setSpd(5);setTimeout(()=>{if(!S.running)togglePlay();},1200);}},
+  // 9 — Play simulation
+  {ico:'▶️',hl:'sec-ctrl',text:'Starting live simulation at 5x speed. Watch floods spread across the map, reservoirs fill, and statistics update in real time.',
+   act:function(){map.flyTo([13.04,80.22],11,{duration:1});setSpd(5);setTimeout(()=>{if(!S.running)togglePlay();},1000);}},
 
-  // 10 — Stats: let it run, highlight stats panel
-  {ico:'📊',hl:'sec-stats',text:'Statistics are updating live: flood coverage in square kilometres, risk level from none to catastrophic, population at risk in lakhs, maximum water depth in feet and inches, and river status. All computed from zone thresholds and current conditions.',
-   act:function(){/* let sim keep running so stats update visibly */}},
+  // 10 — Live stats
+  {ico:'📊',hl:'sec-stats',text:'Live statistics — flood coverage, risk level, population at risk in lakhs, water depth in feet and inches, river status. All updating every frame.',
+   act:function(){/* sim keeps running */}},
 
-  // 11 — Zone status: highlight zone panel, zoom to worst-hit area
-  {ico:'🗺️',hl:'sec-zones',text:'Zone status shows a neighbourhood breakdown — green safe, amber warning, red flooded. Look at the panel: Pallikaranai and Velachery are flooded first. Tambaram and Porur on higher ground stay safe the longest.',
+  // 11 — Zone status
+  {ico:'🗺️',hl:'sec-zones',text:'Zone breakdown — Pallikaranai and Velachery flood first. Tambaram and Porur stay safe longest. Zooming to the worst-hit area.',
    act:function(){map.flyTo([12.97,80.22],12,{duration:1.5});}},
 
-  // 12 — Pause and reset for scenario demo
-  {ico:'⏸️',hl:null,text:'Let us pause and reset the simulation to show you the automated scenario runner and the decision tool.',
+  // 12 — Pause and reset
+  {ico:'⏸️',hl:null,text:'Pausing the simulation. Now let us look at the scenario runner and the decision tool.',
    act:function(){if(S.running)togglePlay();setTimeout(()=>resetSim(),800);map.flyTo([13.06,80.18],11,{duration:1});}},
 
-  // 13 — Scenario runner: open the modal
-  {ico:'📊',hl:null,text:'The Run Scenarios button opens this panel. It automatically simulates all 15 flood events — NE and SW monsoon variants, cyclone landfall, storm surge, reservoir release, multi-spell, cloudburst, tidal lock, Climate 2050, and governance failure. Each captures peak depths and generates a narrated vulnerability report.',
+  // 13 — Scenario runner
+  {ico:'📊',hl:null,text:'The Scenario Runner — 15 automated flood events including monsoons, cyclone, storm surge, cloudburst, tidal lock, Climate 2050 and governance failure. Each generates a vulnerability report.',
    act:function(){openScenarioRunner();}},
 
-  // 14 — Close scenario, open Decision Tool
-  {ico:'🧠',hl:null,text:'The Decision Tool is your what-if engine. Choose any combination of 4 triggers — season, rainfall intensity, special conditions, and reservoir status — and it generates a flood sequence, impact map, and risk assessment. This is how emergency planners can test scenarios before they happen.',
+  // 14 — Decision Tool
+  {ico:'🧠',hl:null,text:'The Decision Tool — choose 4 triggers: season, rainfall, special conditions, reservoir status. It generates a flood sequence and risk assessment for emergency planners.',
    act:function(){closeScenarioRunner();setTimeout(()=>openDecisionTool(),600);}},
 
-  // 15 — Climate 2050 live demo: close DT, set moderate rain + surge
-  {ico:'🌡️',hl:null,text:'Let us simulate Climate 2050. Moderate rain with storm surge — representing 20 centimetre sea level rise. Watch how even moderate rainfall floods inland basins like Perambur and Kolathur through tidal backpressure, not river overflow.',
+  // 15 — Climate 2050 demo
+  {ico:'🌡️',hl:null,text:'Climate 2050 demo — moderate rain plus storm surge for 20 centimetre sea level rise. Watch inland basins flood through tidal backpressure.',
    act:function(){closeDecisionTool();setTimeout(()=>{resetSim();setSeason('ne');animateSlider(0,18,2000);setTimeout(()=>{if(!S.surge)toggleMode('surge');setSpd(5);if(!S.running)togglePlay();map.flyTo([13.10,80.26],12,{duration:1.5});},2500);},600);}},
 
-  // 16 — Worst case demo: cyclone + surge + drain + reservoir
-  {ico:'⚡',hl:null,text:'Now the worst case — cyclone, storm surge, drain blockage and reservoir release all at once. This is the catastrophic scenario. Watch the entire city light up red on the satellite map.',
+  // 16 — Worst case
+  {ico:'⚡',hl:null,text:'Worst case scenario — cyclone, surge, drain blockage and reservoir release together. Watch Chennai turn red.',
    act:function(){if(S.running)togglePlay();setTimeout(()=>{resetSim();setSeason('ne');animateSlider(0,45,3000);setTimeout(()=>{if(!S.cyclone)toggleMode('cyclone');if(!S.surge)toggleMode('surge');if(!S.drain)toggleMode('drain');toggleRes('chem');toggleRes('rh');showAlert('⚠ CRITICAL FLOOD ALERT — EVACUATE LOW-LYING AREAS NOW','d');setSpd(10);if(!S.running)togglePlay();map.flyTo([13.04,80.22],11,{duration:1.5});},3500);},500);}},
 
   // 17 — Conclusion
-  {ico:'🎧',hl:null,text:'That concludes the guided tour of the Chennai Flood Simulator. You have seen all 15 scenarios, the Decision Tool, the 6-belt vulnerability framework, and live flood simulation on satellite imagery. Explore freely or replay any step. Built for urban flood risk awareness, emergency planning, and policy intelligence — by Dr. Sundararaman Chintamani of Suraja Technologies, backed by Jignyashika Consulting.',
+  {ico:'🎧',hl:null,text:'That concludes the guided tour. 15 scenarios, Decision Tool, 6-belt framework, live satellite simulation. Built by Dr. Sundararaman Chintamani of Suraja Technologies, backed by Jignyashika Consulting.',
    act:function(){if(S.running)togglePlay();setTimeout(()=>{resetSim();map.flyTo([13.06,80.18],11,{duration:1.5});},500);}}
 ];
 const TOUR={running:false,step:0,sliderAnim:null};
@@ -1570,11 +1570,11 @@ function runTStep(i){
   // Execute live action (map, sliders, toggles)
   if(step.act) try{step.act();}catch(e){console.warn('Tour action error:',e);}
   // Speak narration
-  const u=new SpeechSynthesisUtterance(expandSpeech(step.text));u.lang='en-IN';u.rate=.92;u.volume=1.0;
+  const u=new SpeechSynthesisUtterance(expandSpeech(step.text));u.lang='en-IN';u.rate=.82;u.volume=1.0;
   const vs=window.speechSynthesis.getVoices();
   const v=vs.find(v=>v.lang.startsWith('en')&&(v.name.includes('India')||v.name.includes('Rishi')))||vs.find(v=>v.lang.startsWith('en'));
   if(v) u.voice=v;
-  u.onend=()=>{if(TOUR.running&&TOUR.step===i)setTimeout(()=>{if(TOUR.running&&TOUR.step===i)tourNext();},1500);};
+  u.onend=()=>{if(TOUR.running&&TOUR.step===i)setTimeout(()=>{if(TOUR.running&&TOUR.step===i)tourNext();},3500);};
   u.onerror=()=>{};window.speechSynthesis.speak(u);
 }
 function typeText(text,el){el.textContent='';let i=0;function t(){if(i<text.length){el.textContent+=text[i++];setTimeout(t,18);}}t();}
